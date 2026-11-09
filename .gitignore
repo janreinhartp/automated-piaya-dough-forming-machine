@@ -1,0 +1,41 @@
+# ESP-IDF build
+build/
+sdkconfig
+sdkconfig.old
+sdkconfig.ci
+dependencies.lock
+
+# ESP Component Manager
+managed_components/
+
+# IDE / editor
+.vscode/
+.idea/
+.cache/
+*.code-workspace
+.clangd/
+compile_commands.json
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Python / tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Logs / temp
+*.log
+*.tmp
+*~
+
+# Flash / binary artifacts
+*.bin
+*.elf
+*.map
+*.hex
+!partitions.csv
