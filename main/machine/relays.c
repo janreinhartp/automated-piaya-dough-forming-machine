@@ -75,7 +75,7 @@ esp_err_t relays_set(relay_id_t id, bool logical_on)
     if (logical_on && id == RELAY_R4_PRESS_REV) {
         opposite = RELAY_R3_PRESS_FWD;
     }
-    if (opposite < RELAY_COUNT && (s_logical_on & (1u << opposite))) {
+    if (opposite < RELAY_COUNT) {
         esp_err_t err = push_hw(opposite, false);
         if (err != ESP_OK) {
             xSemaphoreGive(s_mutex);
