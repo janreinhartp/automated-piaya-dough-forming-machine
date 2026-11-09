@@ -40,8 +40,7 @@ void app_main(void)
 
     esp_lcd_touch_handle_t tp_handle = touch_gt911_init();
 
-    /* Bus is up after touch init — log every ACK before PCF8575 bring-up. */
-    DEV_I2C_Scan();
+    DEV_I2C_Scan(); /* still useful for GT911/IO_EXTENSION */
 
     esp_lcd_panel_handle_t panel_handle = waveshare_esp32_s3_rgb_lcd_init();
     wavesahre_rgb_lcd_bl_on();
@@ -49,7 +48,7 @@ void app_main(void)
 
     esp_err_t io_err = relays_init(cfg.modbus_slave_id, cfg.modbus_baud);
     if (io_err != ESP_OK) {
-        ESP_LOGE(TAG, "Modbus relay init failed (%s) — HMI will run; outputs unavailable",
+        ESP_LOGE(TAG, "N4D8B08/relay init failed (%s) — HMI will run; outputs may be unavailable",
                  esp_err_to_name(io_err));
     }
 
