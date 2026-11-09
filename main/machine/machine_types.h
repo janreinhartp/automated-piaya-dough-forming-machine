@@ -43,7 +43,7 @@ typedef enum {
 
 typedef enum {
     FAULT_NONE = 0,
-    FAULT_PCF8575_COMM,
+    FAULT_IO_COMM,
     FAULT_SETTINGS_INVALID,
     FAULT_INTERNAL
 } machine_fault_t;
@@ -70,8 +70,7 @@ typedef enum {
     CMD_MANUAL_FLATTENER_EXTEND,
     CMD_MANUAL_FLATTENER_RETRACT,
     CMD_MANUAL_ALL_SAFE,
-    CMD_MANUAL_IO_SELFTEST,
-    CMD_MANUAL_POLARITY_TOGGLE
+    CMD_MANUAL_IO_SELFTEST
 } machine_cmd_id_t;
 
 typedef struct {
@@ -91,8 +90,8 @@ typedef struct {
     uint32_t flattener_extend_duration_ms;
     uint32_t flattener_return_duration_ms;
     uint32_t target_quantity;
-    bool relay_active_low;
-    uint8_t pcf8575_addr;
+    uint8_t modbus_slave_id;
+    uint32_t modbus_baud;
 } machine_settings_t;
 
 typedef struct {

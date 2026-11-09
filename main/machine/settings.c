@@ -10,7 +10,7 @@
 static const char *TAG = "settings";
 static const char *NVS_NS = "piaya_cfg";
 static const uint32_t MAGIC = 0x50494159; /* PIAY */
-static const uint16_t VERSION = 1;
+static const uint16_t VERSION = 2;
 
 static machine_settings_t s_cfg;
 static SemaphoreHandle_t s_mutex;
@@ -30,8 +30,8 @@ void settings_get_defaults(machine_settings_t *out)
     out->flattener_extend_duration_ms = 1000;
     out->flattener_return_duration_ms = 1000;
     out->target_quantity = 50;
-    out->relay_active_low = true;
-    out->pcf8575_addr = 0; /* 0 = auto-detect 0x20..0x27 (skip 0x24) */
+    out->modbus_slave_id = 1;
+    out->modbus_baud = 9600;
 }
 
 bool settings_validate(const machine_settings_t *in)
@@ -51,9 +51,9 @@ bool settings_validate(const machine_settings_t *in)
     if (in->flattener_extend_duration_ms < 50 || in->flattener_extend_duration_ms > 30000) return false;
     if (in->flattener_return_duration_ms < 50 || in->flattener_return_duration_ms > 30000) return false;
     if (in->target_quantity < 1 || in->target_quantity > 100000) return false;
-    /* 0 = auto-detect; otherwise must not collide with board devices */
-    if (in->pcf8575_addr == 0x24 || in->pcf8575_addr == 0x5D || in->pcf8575_addr == 0x14) return false;
-    if (in->pcf8575_addr != 0 && (in->pcf8575_addr < 0x20 || in->pcf8575_addr > 0x27)) return false;
+    if (in->modbus_slave_id < 1 || in->modbus_slave_id > 47) return false;
+    if (in->modbus_baud != 2400 && in->modbus_baud != 4800 &&
+        in->modbus_baud != 9600 && in->modbus_baud != 19200) return false;
     return true;
 }
 

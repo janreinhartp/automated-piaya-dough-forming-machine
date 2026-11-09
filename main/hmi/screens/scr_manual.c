@@ -58,7 +58,6 @@ static manual_action_t ACT_FE = {CMD_MANUAL_FLATTENER_EXTEND, true};
 static manual_action_t ACT_FR = {CMD_MANUAL_FLATTENER_RETRACT, false};
 static manual_action_t ACT_SAFE = {CMD_MANUAL_ALL_SAFE, false};
 static manual_action_t ACT_IO_TEST = {CMD_MANUAL_IO_SELFTEST, false};
-static manual_action_t ACT_POL = {CMD_MANUAL_POLARITY_TOGGLE, false};
 
 static void add_pair(lv_obj_t *parent, const char *a, manual_action_t *aa, const char *b, manual_action_t *bb)
 {
@@ -111,10 +110,6 @@ void hmi_show_manual(void)
     lv_obj_t *iotest = hmi_make_btn(col, "I/O SELF-TEST R1-R8", HMI_COLOR_WARN);
     lv_obj_set_width(iotest, 280);
     lv_obj_add_event_cb(iotest, on_action, LV_EVENT_CLICKED, &ACT_IO_TEST);
-
-    lv_obj_t *pol = hmi_make_btn(col, "FLIP RELAY POLARITY", HMI_COLOR_ACCENT);
-    lv_obj_set_width(pol, 280);
-    lv_obj_add_event_cb(pol, on_action, LV_EVENT_CLICKED, &ACT_POL);
 
     lv_obj_t *nav = hmi_make_nav_bar(scr);
     hmi_attach_nav(nav);

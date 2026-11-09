@@ -76,16 +76,6 @@ static bool handle_manual(machine_cmd_id_t id)
         ESP_LOGI(TAG, "I/O self-test done (all safe)");
         return true;
     }
-    case CMD_MANUAL_POLARITY_TOGGLE: {
-        machine_settings_t cfg;
-        settings_get(&cfg);
-        cfg.relay_active_low = !cfg.relay_active_low;
-        (void)settings_set(&cfg);
-        (void)relays_set_polarity(cfg.relay_active_low);
-        ESP_LOGW(TAG, "relay polarity now active_%s — try Mixer again",
-                 cfg.relay_active_low ? "LOW" : "HIGH");
-        return true;
-    }
     default: return false;
     }
 }
@@ -112,12 +102,8 @@ static void handle_cmd(const machine_cmd_t *cmd)
         }
         break;
 
-    case CMD_SETTINGS_RELOAD: {
-        machine_settings_t cfg;
-        settings_get(&cfg);
-        relays_set_polarity(cfg.relay_active_low);
+    case CMD_SETTINGS_RELOAD:
         break;
-    }
 
     case CMD_START_AUTO: {
         if (!safety_is_recovery_unlocked()) {

@@ -47,9 +47,9 @@ void app_main(void)
     wavesahre_rgb_lcd_bl_on();
     ESP_ERROR_CHECK(lvgl_port_init(panel_handle, tp_handle));
 
-    esp_err_t io_err = relays_init(cfg.pcf8575_addr, cfg.relay_active_low);
+    esp_err_t io_err = relays_init(cfg.modbus_slave_id, cfg.modbus_baud);
     if (io_err != ESP_OK) {
-        ESP_LOGE(TAG, "PCF8575/relay init failed (%s) — HMI will run; outputs unavailable",
+        ESP_LOGE(TAG, "Modbus relay init failed (%s) — HMI will run; outputs unavailable",
                  esp_err_to_name(io_err));
     }
 
