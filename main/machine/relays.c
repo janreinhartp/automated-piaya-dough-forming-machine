@@ -8,8 +8,13 @@
 static const char *TAG = "relays";
 
 static SemaphoreHandle_t s_mutex;
-static uint8_t s_logical_on = 0; /* bit set => logical ON */
+static uint8_t s_logical_on = 0; /* bit set => logical ON (last successfully commanded) */
 static bool s_hw_warned;
+/*
+ * Set after any failed Modbus write: coil state is then unverified, so the
+ * skip-if-unchanged optimisation is disabled until a close_all succeeds.
+ */
+static bool s_unverified;
 
 static esp_err_t push_hw(relay_id_t id, bool logical_on)
 {
@@ -18,12 +23,14 @@ static esp_err_t push_hw(relay_id_t id, bool logical_on)
             ESP_LOGW(TAG, "N4D8B08 not ready");
             s_hw_warned = true;
         }
+        s_unverified = true;
         return ESP_ERR_INVALID_STATE;
     }
 
     uint8_t channel = (uint8_t)id + 1u;
     esp_err_t err = n4d8b08_set_channel(channel, logical_on);
     if (err != ESP_OK) {
+        s_unverified = true;
         ESP_LOGE(TAG, "N4D8B08 channel %u %s failed: %s",
                  (unsigned)channel, logical_on ? "open" : "close", esp_err_to_name(err));
     } else {
@@ -42,6 +49,7 @@ esp_err_t relays_init(uint8_t slave_id, uint32_t baud)
     }
 
     s_logical_on = 0;
+    s_unverified = true;
 
     esp_err_t err = n4d8b08_init(slave_id, baud);
     if (err != ESP_OK) {
@@ -53,8 +61,16 @@ esp_err_t relays_init(uint8_t slave_id, uint32_t baud)
 esp_err_t relays_force_safe(void)
 {
     xSemaphoreTake(s_mutex, portMAX_DELAY);
-    s_logical_on = 0;
+    /* Only claim "all off" if the close-all write succeeded. */
     esp_err_t err = n4d8b08_close_all();
+    if (err == ESP_OK) {
+        s_logical_on = 0;
+        s_unverified = false;
+    } else {
+        s_unverified = true;
+        ESP_LOGE(TAG, "close_all failed (%s); commanded mask left at 0x%02X (unverified)",
+                 esp_err_to_name(err), (unsigned)s_logical_on);
+    }
     xSemaphoreGive(s_mutex);
     return err;
 }
@@ -67,7 +83,7 @@ esp_err_t relays_set(relay_id_t id, bool logical_on)
 
     xSemaphoreTake(s_mutex, portMAX_DELAY);
 
-    /* Press mutual exclusion */
+    /* Press mutual exclusion: always close the opposite direction before opening one. */
     relay_id_t opposite = RELAY_COUNT;
     if (logical_on && id == RELAY_R3_PRESS_FWD) {
         opposite = RELAY_R4_PRESS_REV;
@@ -76,12 +92,22 @@ esp_err_t relays_set(relay_id_t id, bool logical_on)
         opposite = RELAY_R3_PRESS_FWD;
     }
     if (opposite < RELAY_COUNT) {
-        esp_err_t err = push_hw(opposite, false);
-        if (err != ESP_OK) {
-            xSemaphoreGive(s_mutex);
-            return err;
+        /* Skip Modbus close only when opposite is known to be off. */
+        if (s_unverified || (s_logical_on & (1u << opposite)) != 0) {
+            esp_err_t err = push_hw(opposite, false);
+            if (err != ESP_OK) {
+                xSemaphoreGive(s_mutex);
+                return err;
+            }
+            s_logical_on &= (uint8_t)~(1u << opposite);
         }
-        s_logical_on &= (uint8_t)~(1u << opposite);
+    }
+
+    /* Skip redundant Modbus I/O when the verified commanded state already matches. */
+    bool already_on = (s_logical_on & (1u << id)) != 0;
+    if (!s_unverified && already_on == logical_on) {
+        xSemaphoreGive(s_mutex);
+        return ESP_OK;
     }
 
     esp_err_t err = push_hw(id, logical_on);
@@ -119,16 +145,24 @@ esp_err_t relays_apply_mask(uint8_t logical_on_mask)
     }
 
     esp_err_t err = n4d8b08_close_all();
+    if (err != ESP_OK) {
+        /* Hardware state unverified: leave commanded mask untouched. */
+        s_unverified = true;
+        ESP_LOGE(TAG, "apply_mask close_all failed: %s", esp_err_to_name(err));
+        xSemaphoreGive(s_mutex);
+        return err;
+    }
     s_logical_on = 0;
-    if (err == ESP_OK) {
-        for (int i = 0; i < RELAY_COUNT; i++) {
-            if (logical_on_mask & (1u << i)) {
-                err = n4d8b08_set_channel((uint8_t)(i + 1), true);
-                if (err != ESP_OK) {
-                    break;
-                }
-                s_logical_on |= (uint8_t)(1u << i);
+    s_unverified = false;
+
+    for (int i = 0; i < RELAY_COUNT; i++) {
+        if (logical_on_mask & (1u << i)) {
+            err = n4d8b08_set_channel((uint8_t)(i + 1), true);
+            if (err != ESP_OK) {
+                s_unverified = true;
+                break;
             }
+            s_logical_on |= (uint8_t)(1u << i);
         }
     }
     xSemaphoreGive(s_mutex);

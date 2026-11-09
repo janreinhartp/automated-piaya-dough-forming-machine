@@ -6,7 +6,7 @@ Items that are intentionally unresolved or require bench/operator confirmation b
 
 | ID | Topic | Current assumption | Needs |
 |----|-------|--------------------|-------|
-| H1 | RS485 DE/RE direction control | Not yet confirmed as automatic or GPIO-controlled | Check Waveshare board silk/schematic during bring-up |
+| H1 | RS485 DE/RE direction control | Not yet confirmed as automatic or GPIO-controlled | Check Waveshare board silk/schematic during bring-up. Also confirm unplug → Modbus timeout (not a local TX echo mistaken for FC06 success) |
 | H2 | N4D8B08 supply | 12 V vs 24 V is an electrical integration choice | Confirm installed board supply |
 | H3 | N4D8B08 channel mapping | Channel 1=R1 … channel 8=R8 | Verify each channel during bench bring-up |
 | H4 | Valve coil voltage | Likely 24 V DC (unconfirmed) | Nameplate check |

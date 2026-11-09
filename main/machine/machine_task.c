@@ -43,40 +43,55 @@ static void publish_status(void)
     xSemaphoreGive(s_status_mux);
 }
 
-static bool handle_manual(machine_cmd_id_t id)
+/**
+ * Returns ESP_OK on success, ESP_ERR_NOT_SUPPORTED if the command was rejected
+ * by guards / unknown (not an I/O fault), otherwise the actuator/Modbus error.
+ */
+static esp_err_t handle_manual(machine_cmd_id_t id)
 {
     if (!safety_is_recovery_unlocked() || s_sm.auto_active || s_sm.state == MACHINE_FAULT) {
-        return false;
+        return ESP_ERR_NOT_SUPPORTED;
     }
 
     switch (id) {
-    case CMD_MANUAL_MIXER_ON: return actuators_mixer(true) == ESP_OK;
-    case CMD_MANUAL_MIXER_OFF: return actuators_mixer(false) == ESP_OK;
-    case CMD_MANUAL_DOOR_OPEN: return actuators_door_extend(true) == ESP_OK;
-    case CMD_MANUAL_DOOR_CLOSE: return actuators_door_extend(false) == ESP_OK;
-    case CMD_MANUAL_PRESS_FWD: return actuators_press_forward(true) == ESP_OK;
-    case CMD_MANUAL_PRESS_REV: return actuators_press_reverse(true) == ESP_OK;
-    case CMD_MANUAL_PRESS_COAST: return actuators_press_coast() == ESP_OK;
-    case CMD_MANUAL_CUTTER_EXTEND: return actuators_cutter_extend(true) == ESP_OK;
-    case CMD_MANUAL_CUTTER_RETRACT: return actuators_cutter_extend(false) == ESP_OK;
-    case CMD_MANUAL_CONVEYOR_ON: return actuators_conveyor(true) == ESP_OK;
-    case CMD_MANUAL_CONVEYOR_OFF: return actuators_conveyor(false) == ESP_OK;
-    case CMD_MANUAL_FLATTENER_EXTEND: return actuators_flattener_extend(true) == ESP_OK;
-    case CMD_MANUAL_FLATTENER_RETRACT: return actuators_flattener_extend(false) == ESP_OK;
-    case CMD_MANUAL_ALL_SAFE: return actuators_all_safe() == ESP_OK;
+    case CMD_MANUAL_MIXER_ON: return actuators_mixer(true);
+    case CMD_MANUAL_MIXER_OFF: return actuators_mixer(false);
+    case CMD_MANUAL_DOOR_OPEN: return actuators_door_extend(true);
+    case CMD_MANUAL_DOOR_CLOSE: return actuators_door_extend(false);
+    case CMD_MANUAL_PRESS_FWD: return actuators_press_forward(true);
+    case CMD_MANUAL_PRESS_REV: return actuators_press_reverse(true);
+    case CMD_MANUAL_PRESS_COAST: return actuators_press_coast();
+    case CMD_MANUAL_CUTTER_EXTEND: return actuators_cutter_extend(true);
+    case CMD_MANUAL_CUTTER_RETRACT: return actuators_cutter_extend(false);
+    case CMD_MANUAL_CONVEYOR_ON: return actuators_conveyor(true);
+    case CMD_MANUAL_CONVEYOR_OFF: return actuators_conveyor(false);
+    case CMD_MANUAL_FLATTENER_EXTEND: return actuators_flattener_extend(true);
+    case CMD_MANUAL_FLATTENER_RETRACT: return actuators_flattener_extend(false);
+    case CMD_MANUAL_ALL_SAFE: return actuators_all_safe();
     case CMD_MANUAL_IO_SELFTEST: {
         ESP_LOGI(TAG, "I/O self-test: energize R1..R8 one-by-one (listen for clicks)");
+        esp_err_t first_err = ESP_OK;
         for (int i = 0; i < RELAY_COUNT; i++) {
             uint8_t mask = (uint8_t)(1u << i);
             ESP_LOGI(TAG, "self-test R%d logical ON", i + 1);
-            (void)relays_apply_mask(mask);
+            esp_err_t e = relays_apply_mask(mask);
+            if (e != ESP_OK) {
+                first_err = e;
+                ESP_LOGE(TAG, "self-test R%d failed: %s", i + 1, esp_err_to_name(e));
+                break;
+            }
             vTaskDelay(pdMS_TO_TICKS(500));
         }
-        (void)actuators_all_safe();
-        ESP_LOGI(TAG, "I/O self-test done (all safe)");
-        return true;
+        esp_err_t safe_err = actuators_all_safe();
+        if (first_err == ESP_OK) {
+            first_err = safe_err;
+        }
+        if (first_err == ESP_OK) {
+            ESP_LOGI(TAG, "I/O self-test done (all safe)");
+        }
+        return first_err;
     }
-    default: return false;
+    default: return ESP_ERR_NOT_SUPPORTED;
     }
 }
 
@@ -96,9 +111,14 @@ static void handle_cmd(const machine_cmd_t *cmd)
 
     case CMD_FAULT_CLEAR:
         if (s_sm.state == MACHINE_FAULT) {
+            /* Only leave FAULT once the safe-state write is confirmed; otherwise stay faulted. */
+            esp_err_t err = actuators_all_safe();
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "fault clear refused: all-safe failed (%s)", esp_err_to_name(err));
+                break;
+            }
             s_sm.fault = FAULT_NONE;
             s_sm.state = MACHINE_IDLE;
-            actuators_all_safe();
         }
         break;
 
@@ -110,10 +130,12 @@ static void handle_cmd(const machine_cmd_t *cmd)
             ESP_LOGW(TAG, "start blocked: recovery locked");
             break;
         }
-        if (s_sm.auto_active) {
+        if (s_sm.auto_active || s_sm.state == MACHINE_FAULT) {
             break;
         }
-        actuators_all_safe();
+        if (machine_sm_handle_io_error(&s_sm, actuators_all_safe())) {
+            break; /* FAULT_IO_COMM: cannot confirm safe state before start */
+        }
         machine_settings_t cfg;
         settings_get(&cfg);
         if (!settings_validate(&cfg)) {
@@ -139,7 +161,15 @@ static void handle_cmd(const machine_cmd_t *cmd)
         break;
 
     default:
-        handle_manual(cmd->id);
+        {
+            esp_err_t err = handle_manual(cmd->id);
+            if (err == ESP_ERR_NOT_SUPPORTED) {
+                ESP_LOGW(TAG, "manual command %d rejected", (int)cmd->id);
+            } else if (err != ESP_OK) {
+                ESP_LOGE(TAG, "manual command %d failed: %s", (int)cmd->id, esp_err_to_name(err));
+                machine_sm_handle_io_error(&s_sm, err);
+            }
+        }
         break;
     }
 }

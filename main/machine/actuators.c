@@ -19,8 +19,7 @@ esp_err_t actuators_door_extend(bool extend)
 esp_err_t actuators_press_forward(bool on)
 {
     if (on) {
-        relays_set(RELAY_R4_PRESS_REV, false);
-        return relays_set(RELAY_R3_PRESS_FWD, true);
+        return relays_set(RELAY_R3_PRESS_FWD, true); /* relays_set closes REV first */
     }
     return relays_set(RELAY_R3_PRESS_FWD, false);
 }
@@ -28,8 +27,7 @@ esp_err_t actuators_press_forward(bool on)
 esp_err_t actuators_press_reverse(bool on)
 {
     if (on) {
-        relays_set(RELAY_R3_PRESS_FWD, false);
-        return relays_set(RELAY_R4_PRESS_REV, true);
+        return relays_set(RELAY_R4_PRESS_REV, true); /* relays_set closes FWD first */
     }
     return relays_set(RELAY_R4_PRESS_REV, false);
 }

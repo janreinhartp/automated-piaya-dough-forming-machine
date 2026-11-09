@@ -3,7 +3,12 @@
 #include "history.h"
 #include "settings.h"
 
+#include "esp_err.h"
+#include "esp_log.h"
+
 #include <string.h>
+
+static const char *TAG = "machine_sm";
 
 static void arm_deadline(machine_sm_t *sm, uint32_t now_ms, uint32_t dur_ms)
 {
@@ -46,96 +51,128 @@ const char *machine_sm_step_name(machine_state_t state)
     }
 }
 
-void machine_sm_apply_outputs(const machine_sm_t *sm)
+/* Run one actuator call; remember the first failure but keep driving the rest. */
+#define ACC(call)                    \
+    do {                             \
+        esp_err_t acc_e_ = (call);   \
+        if (rc == ESP_OK) {          \
+            rc = acc_e_;             \
+        }                            \
+    } while (0)
+
+esp_err_t machine_sm_apply_outputs(const machine_sm_t *sm)
 {
+    esp_err_t rc = ESP_OK;
     switch (sm->state) {
     case MACHINE_MIXING:
-        actuators_mixer(true);
-        actuators_door_extend(false);
-        actuators_press_coast();
-        actuators_cutter_extend(false);
-        actuators_conveyor(false);
-        actuators_flattener_extend(false);
+        ACC(actuators_mixer(true));
+        ACC(actuators_door_extend(false));
+        ACC(actuators_press_coast());
+        ACC(actuators_cutter_extend(false));
+        ACC(actuators_conveyor(false));
+        ACC(actuators_flattener_extend(false));
         break;
     case MACHINE_DOOR_OPENING:
     case MACHINE_DOUGH_TRANSFER:
-        actuators_mixer(false);
-        actuators_door_extend(true);
-        actuators_press_coast();
-        actuators_cutter_extend(false);
-        actuators_conveyor(false);
-        actuators_flattener_extend(false);
+        ACC(actuators_mixer(false));
+        ACC(actuators_door_extend(true));
+        ACC(actuators_press_coast());
+        ACC(actuators_cutter_extend(false));
+        ACC(actuators_conveyor(false));
+        ACC(actuators_flattener_extend(false));
         break;
     case MACHINE_DOOR_CLOSING:
     case MACHINE_MIXING_COMPLETE:
-        actuators_mixer(false);
-        actuators_door_extend(false);
-        actuators_press_coast();
-        actuators_cutter_extend(false);
-        actuators_conveyor(false);
-        actuators_flattener_extend(false);
+        ACC(actuators_mixer(false));
+        ACC(actuators_door_extend(false));
+        ACC(actuators_press_coast());
+        ACC(actuators_cutter_extend(false));
+        ACC(actuators_conveyor(false));
+        ACC(actuators_flattener_extend(false));
         break;
     case MACHINE_PRESS_ADVANCING:
-        actuators_mixer(false);
-        actuators_door_extend(false);
-        actuators_press_forward(true);
-        actuators_cutter_extend(false);
-        actuators_conveyor(false);
-        actuators_flattener_extend(false);
+        ACC(actuators_mixer(false));
+        ACC(actuators_door_extend(false));
+        ACC(actuators_press_forward(true));
+        ACC(actuators_cutter_extend(false));
+        ACC(actuators_conveyor(false));
+        ACC(actuators_flattener_extend(false));
         break;
     case MACHINE_PRESS_HOLDING:
-        actuators_mixer(false);
-        actuators_door_extend(false);
-        actuators_press_coast();
-        actuators_cutter_extend(false);
-        actuators_conveyor(false);
-        actuators_flattener_extend(false);
+        ACC(actuators_mixer(false));
+        ACC(actuators_door_extend(false));
+        ACC(actuators_press_coast());
+        ACC(actuators_cutter_extend(false));
+        ACC(actuators_conveyor(false));
+        ACC(actuators_flattener_extend(false));
         break;
     case MACHINE_CUTTER_EXTENDING:
-        actuators_cutter_extend(true);
-        actuators_press_coast();
-        actuators_conveyor(false);
-        actuators_flattener_extend(false);
+        ACC(actuators_cutter_extend(true));
+        ACC(actuators_press_coast());
+        ACC(actuators_conveyor(false));
+        ACC(actuators_flattener_extend(false));
         break;
     case MACHINE_CUTTER_RETRACTING:
-        actuators_cutter_extend(false);
-        actuators_press_coast();
-        actuators_conveyor(false);
-        actuators_flattener_extend(false);
+        ACC(actuators_cutter_extend(false));
+        ACC(actuators_press_coast());
+        ACC(actuators_conveyor(false));
+        ACC(actuators_flattener_extend(false));
         break;
     case MACHINE_CONVEYOR_RUNNING:
-        actuators_conveyor(true);
-        actuators_cutter_extend(false);
-        actuators_flattener_extend(false);
-        actuators_press_coast();
+        ACC(actuators_conveyor(true));
+        ACC(actuators_cutter_extend(false));
+        ACC(actuators_flattener_extend(false));
+        ACC(actuators_press_coast());
         break;
     case MACHINE_FLATTENER_EXTENDING:
-        actuators_conveyor(false);
-        actuators_flattener_extend(true);
-        actuators_press_coast();
+        ACC(actuators_conveyor(false));
+        ACC(actuators_flattener_extend(true));
+        ACC(actuators_press_coast());
         break;
     case MACHINE_FLATTENER_RETRACTING:
     case MACHINE_COUNTER_UPDATE:
-        actuators_flattener_extend(false);
-        actuators_conveyor(false);
-        actuators_press_coast();
+        ACC(actuators_flattener_extend(false));
+        ACC(actuators_conveyor(false));
+        ACC(actuators_press_coast());
         break;
     case MACHINE_PAUSED:
-        actuators_mixer(false);
-        actuators_conveyor(false);
-        actuators_door_extend(false);
-        actuators_cutter_extend(false);
-        actuators_flattener_extend(false);
-        actuators_press_coast();
+        ACC(actuators_mixer(false));
+        ACC(actuators_conveyor(false));
+        ACC(actuators_door_extend(false));
+        ACC(actuators_cutter_extend(false));
+        ACC(actuators_flattener_extend(false));
+        ACC(actuators_press_coast());
         break;
     case MACHINE_IDLE:
     case MACHINE_STOPPING:
     case MACHINE_COMPLETED:
     case MACHINE_FAULT:
     default:
-        actuators_all_safe();
+        ACC(actuators_all_safe());
         break;
     }
+    return rc;
+}
+
+bool machine_sm_handle_io_error(machine_sm_t *sm, esp_err_t err)
+{
+    if (err == ESP_OK) {
+        return false;
+    }
+    if (sm->state == MACHINE_FAULT) {
+        /* Already faulted: do not re-enter (no apply_outputs recursion). */
+        ESP_LOGE(TAG, "I/O error while already in FAULT: %s", esp_err_to_name(err));
+        return false;
+    }
+    ESP_LOGE(TAG, "Modbus/relay I/O failure (%s) -> FAULT_IO_COMM", esp_err_to_name(err));
+    machine_sm_enter_fault(sm, FAULT_IO_COMM);
+    return true;
+}
+
+/* Apply outputs for the current state; raise FAULT_IO_COMM on failure. */
+static bool apply_or_fault(machine_sm_t *sm)
+{
+    return !machine_sm_handle_io_error(sm, machine_sm_apply_outputs(sm));
 }
 
 bool machine_sm_start_auto(machine_sm_t *sm, const machine_settings_t *cfg, uint32_t now_ms)
@@ -150,7 +187,8 @@ bool machine_sm_start_auto(machine_sm_t *sm, const machine_settings_t *cfg, uint
     sm->run_start_ms = now_ms;
     sm->state = MACHINE_MIXING;
     arm_deadline(sm, now_ms, sm->run_cfg.mixing_duration_ms);
-    machine_sm_apply_outputs(sm);
+    /* On I/O failure this enters FAULT_IO_COMM; start request itself was valid. */
+    (void)apply_or_fault(sm);
     return true;
 }
 
@@ -164,7 +202,7 @@ void machine_sm_pause(machine_sm_t *sm, uint32_t now_ms)
     sm->pause_remaining_ms = (sm->step_deadline_ms > now_ms) ? (sm->step_deadline_ms - now_ms) : 0;
     sm->state_before_pause = sm->state;
     sm->state = MACHINE_PAUSED;
-    machine_sm_apply_outputs(sm);
+    (void)apply_or_fault(sm);
 }
 
 void machine_sm_resume(machine_sm_t *sm, uint32_t now_ms)
@@ -174,14 +212,14 @@ void machine_sm_resume(machine_sm_t *sm, uint32_t now_ms)
     }
     sm->state = sm->state_before_pause;
     arm_deadline(sm, now_ms, sm->pause_remaining_ms);
-    machine_sm_apply_outputs(sm);
+    (void)apply_or_fault(sm);
 }
 
 void machine_sm_stop(machine_sm_t *sm)
 {
     sm->auto_active = false;
     sm->state = MACHINE_IDLE;
-    machine_sm_apply_outputs(sm);
+    (void)apply_or_fault(sm);
 }
 
 void machine_sm_enter_fault(machine_sm_t *sm, machine_fault_t fault)
@@ -189,14 +227,19 @@ void machine_sm_enter_fault(machine_sm_t *sm, machine_fault_t fault)
     sm->fault = fault;
     sm->auto_active = false;
     sm->state = MACHINE_FAULT;
-    machine_sm_apply_outputs(sm);
+    /* Already faulting: log only; never recurse into enter_fault. */
+    esp_err_t err = machine_sm_apply_outputs(sm);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "safe-state apply failed in FAULT (%s): %s",
+                 machine_sm_step_name(sm->state), esp_err_to_name(err));
+    }
 }
 
 static void enter(machine_sm_t *sm, machine_state_t next, uint32_t now_ms, uint32_t dur)
 {
     sm->state = next;
     arm_deadline(sm, now_ms, dur);
-    machine_sm_apply_outputs(sm);
+    (void)apply_or_fault(sm);
 }
 
 bool machine_sm_tick(machine_sm_t *sm, uint32_t now_ms)
@@ -213,7 +256,7 @@ bool machine_sm_tick(machine_sm_t *sm, uint32_t now_ms)
             history_record_run(sm->current_qty, dur, 0);
             sm->auto_active = false;
             sm->state = MACHINE_COMPLETED;
-            machine_sm_apply_outputs(sm);
+            (void)apply_or_fault(sm);
             return true;
         }
         enter(sm, MACHINE_PRESS_ADVANCING, now_ms, sm->run_cfg.press_advancement_duration_ms);
@@ -260,7 +303,7 @@ bool machine_sm_tick(machine_sm_t *sm, uint32_t now_ms)
         break;
     case MACHINE_FLATTENER_RETRACTING:
         sm->state = MACHINE_COUNTER_UPDATE;
-        machine_sm_apply_outputs(sm);
+        (void)apply_or_fault(sm);
         break;
     default:
         break;
