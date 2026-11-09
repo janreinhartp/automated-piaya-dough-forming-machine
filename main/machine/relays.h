@@ -9,8 +9,7 @@
 extern "C" {
 #endif
 
-esp_err_t relays_init(uint8_t pcf_addr, bool active_low);
-esp_err_t relays_set_polarity(bool active_low);
+esp_err_t relays_init(uint8_t slave_id, uint32_t baud);
 esp_err_t relays_force_safe(void);
 esp_err_t relays_set(relay_id_t id, bool logical_on);
 bool relays_get(relay_id_t id);

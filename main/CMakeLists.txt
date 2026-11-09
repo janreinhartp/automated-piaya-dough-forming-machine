@@ -29,7 +29,7 @@ set(include_dirs
 idf_component_register(SRCS ${srcs}
                        INCLUDE_DIRS ${include_dirs}
                        REQUIRES nvs_flash driver freertos
-                                pcf8575 i2c rgb_lcd_port touch lvgl_port)
+                                n4d8b08 i2c rgb_lcd_port touch lvgl_port)
 
 idf_component_get_property(lvgl_lib lvgl__lvgl COMPONENT_LIB)
 target_compile_options(${lvgl_lib} PRIVATE -Wno-format)

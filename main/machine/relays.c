@@ -1,49 +1,38 @@
 #include "relays.h"
 
 #include "esp_log.h"
-#include "pcf8575.h"
+#include "n4d8b08.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
 static const char *TAG = "relays";
 
 static SemaphoreHandle_t s_mutex;
-static bool s_active_low = true;
 static uint8_t s_logical_on = 0; /* bit set => logical ON */
 static bool s_hw_warned;
 
-static uint8_t logical_to_port0(uint8_t logical_on)
+static esp_err_t push_hw(relay_id_t id, bool logical_on)
 {
-    if (s_active_low) {
-        return (uint8_t)(~logical_on);
-    }
-    return logical_on;
-}
-
-static esp_err_t push_hw(void)
-{
-    if (!pcf8575_is_ready()) {
+    if (!n4d8b08_is_ready()) {
         if (!s_hw_warned) {
-            ESP_LOGW(TAG, "PCF8575 not ready — keeping commanded state in RAM only");
+            ESP_LOGW(TAG, "N4D8B08 not ready");
             s_hw_warned = true;
         }
         return ESP_ERR_INVALID_STATE;
     }
 
-    uint8_t port0 = logical_to_port0(s_logical_on);
-    ESP_LOGI(TAG, "push logical=0x%02X -> port0=0x%02X (active_low=%d)",
-             s_logical_on, port0, (int)s_active_low);
-
-    esp_err_t err = pcf8575_write_port0(port0);
+    uint8_t channel = (uint8_t)id + 1u;
+    esp_err_t err = n4d8b08_set_channel(channel, logical_on);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "PCF8575 write failed (commanded mask kept in RAM: 0x%02X)", s_logical_on);
+        ESP_LOGE(TAG, "N4D8B08 channel %u %s failed: %s",
+                 (unsigned)channel, logical_on ? "open" : "close", esp_err_to_name(err));
     } else {
         s_hw_warned = false;
     }
     return err;
 }
 
-esp_err_t relays_init(uint8_t pcf_addr, bool active_low)
+esp_err_t relays_init(uint8_t slave_id, uint32_t baud)
 {
     if (s_mutex == NULL) {
         s_mutex = xSemaphoreCreateMutex();
@@ -52,30 +41,20 @@ esp_err_t relays_init(uint8_t pcf_addr, bool active_low)
         }
     }
 
-    s_active_low = active_low;
     s_logical_on = 0;
 
-    esp_err_t err = pcf8575_init(pcf_addr);
+    esp_err_t err = n4d8b08_init(slave_id, baud);
     if (err != ESP_OK) {
         return err;
     }
     return relays_force_safe();
 }
 
-esp_err_t relays_set_polarity(bool active_low)
-{
-    xSemaphoreTake(s_mutex, portMAX_DELAY);
-    s_active_low = active_low;
-    esp_err_t err = push_hw();
-    xSemaphoreGive(s_mutex);
-    return err;
-}
-
 esp_err_t relays_force_safe(void)
 {
     xSemaphoreTake(s_mutex, portMAX_DELAY);
     s_logical_on = 0;
-    esp_err_t err = push_hw();
+    esp_err_t err = n4d8b08_close_all();
     xSemaphoreGive(s_mutex);
     return err;
 }
@@ -89,30 +68,30 @@ esp_err_t relays_set(relay_id_t id, bool logical_on)
     xSemaphoreTake(s_mutex, portMAX_DELAY);
 
     /* Press mutual exclusion */
+    relay_id_t opposite = RELAY_COUNT;
     if (logical_on && id == RELAY_R3_PRESS_FWD) {
-        s_logical_on &= (uint8_t)~(1u << RELAY_R4_PRESS_REV);
+        opposite = RELAY_R4_PRESS_REV;
     }
     if (logical_on && id == RELAY_R4_PRESS_REV) {
-        s_logical_on &= (uint8_t)~(1u << RELAY_R3_PRESS_FWD);
+        opposite = RELAY_R3_PRESS_FWD;
+    }
+    if (opposite < RELAY_COUNT && (s_logical_on & (1u << opposite))) {
+        esp_err_t err = push_hw(opposite, false);
+        if (err != ESP_OK) {
+            xSemaphoreGive(s_mutex);
+            return err;
+        }
+        s_logical_on &= (uint8_t)~(1u << opposite);
     }
 
-    if (logical_on) {
-        s_logical_on |= (uint8_t)(1u << id);
-    } else {
-        s_logical_on &= (uint8_t)~(1u << id);
+    esp_err_t err = push_hw(id, logical_on);
+    if (err == ESP_OK) {
+        if (logical_on) {
+            s_logical_on |= (uint8_t)(1u << id);
+        } else {
+            s_logical_on &= (uint8_t)~(1u << id);
+        }
     }
-
-    /* Never allow both press bits */
-    if ((s_logical_on & (1u << RELAY_R3_PRESS_FWD)) &&
-        (s_logical_on & (1u << RELAY_R4_PRESS_REV))) {
-        ESP_LOGE(TAG, "press mutex violation blocked");
-        s_logical_on &= (uint8_t)~((1u << RELAY_R3_PRESS_FWD) | (1u << RELAY_R4_PRESS_REV));
-        push_hw();
-        xSemaphoreGive(s_mutex);
-        return ESP_ERR_INVALID_STATE;
-    }
-
-    esp_err_t err = push_hw();
     xSemaphoreGive(s_mutex);
     return err;
 }
@@ -138,8 +117,20 @@ esp_err_t relays_apply_mask(uint8_t logical_on_mask)
         xSemaphoreGive(s_mutex);
         return ESP_ERR_INVALID_ARG;
     }
-    s_logical_on = logical_on_mask;
-    esp_err_t err = push_hw();
+
+    esp_err_t err = n4d8b08_close_all();
+    s_logical_on = 0;
+    if (err == ESP_OK) {
+        for (int i = 0; i < RELAY_COUNT; i++) {
+            if (logical_on_mask & (1u << i)) {
+                err = n4d8b08_set_channel((uint8_t)(i + 1), true);
+                if (err != ESP_OK) {
+                    break;
+                }
+                s_logical_on |= (uint8_t)(1u << i);
+            }
+        }
+    }
     xSemaphoreGive(s_mutex);
     return err;
 }
