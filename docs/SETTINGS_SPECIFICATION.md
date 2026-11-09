@@ -28,17 +28,19 @@ History uses a separate namespace `piaya_hist` (see History section).
 | `flat_ext_ms` | u32 | 1000 | 50 | 30000 | ms | Flattener extend |
 | `flat_ret_ms` | u32 | 1000 | 50 | 30000 | ms | Flattener return wait |
 | `target_qty` | u32 | 50 | 1 | 100000 | count | Production target |
-| `modbus_slave_id` | u8 | 1 | — | — | ID | N4D8B08 Modbus slave ID |
-| `modbus_baud` | u32 | 9600 | — | — | baud | N4D8B08 UART baud rate; 8N1 |
+| `modbus_slave_id` | u8 | 1 | 1 | 47 | ID | N4D8B08 Modbus slave ID |
+| `modbus_baud` | u32 | 9600 | — | — | baud | N4D8B08 UART baud rate; 8N1; one of 2400, 4800, 9600, 19200 |
 
 Defaults are **starting estimates** for commissioning; tune on the real machine and Save.
-The Modbus keys may be stored in NVS; v1 defaults are slave 1 and 9600 baud. There is no relay polarity setting.
+The Modbus keys may be stored in NVS; schema version 2 defaults are slave 1 and 9600 baud. There is no relay polarity setting.
 
 ## Validation rules
 
 - Reject Save if any value outside min/max.
 - Reject Start Auto if `target_qty < 1` or any duration critical path is zero where motion is required (`press_adv_ms`, `cut_ext_ms`, etc. must be ≥ min).
 - `press_hold_ms` may be 0.
+- `modbus_slave_id` must be 1–47 (default 1).
+- `modbus_baud` must be one of 2400, 4800, 9600, or 19200 (default 9600). It is not a continuous min/max range.
 - Validate Modbus settings before initializing the relay backend.
 - Invalid NVS blob → load defaults and raise non-fatal settings warning on HMI.
 
@@ -47,7 +49,7 @@ The Modbus keys may be stored in NVS; v1 defaults are slave 1 and 9600 baud. The
 ```
 namespace: piaya_cfg
   magic      u32   = 0x50494159  /* 'PIAY' */
-  version   u16   = 1
+  version   u16   = 2
   ...keys above...
 ```
 
