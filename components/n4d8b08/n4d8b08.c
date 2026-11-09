@@ -29,7 +29,8 @@ static esp_err_t fc06(uint16_t reg, uint16_t value)
     uart_flush_input(N4D8B08_UART_NUM);
     int w = uart_write_bytes(N4D8B08_UART_NUM, (const char *)req, 8);
     if (w != 8) return ESP_FAIL;
-    (void)uart_wait_tx_done(N4D8B08_UART_NUM, pdMS_TO_TICKS(100));
+    esp_err_t err = uart_wait_tx_done(N4D8B08_UART_NUM, pdMS_TO_TICKS(100));
+    if (err != ESP_OK) return err;
 
     uint8_t resp[8];
     int r = uart_read_bytes(N4D8B08_UART_NUM, resp, 8, pdMS_TO_TICKS(200));
@@ -61,9 +62,13 @@ static esp_err_t fc06_retry(uint16_t reg, uint16_t value)
 
 esp_err_t n4d8b08_init(uint8_t slave_id, uint32_t baud)
 {
+    s_ready = false;
     s_slave = slave_id ? slave_id : N4D8B08_DEFAULT_SLAVE;
     if (baud == 0) baud = N4D8B08_DEFAULT_BAUD;
-    if (s_mutex == NULL) s_mutex = xSemaphoreCreateMutex();
+    if (s_mutex == NULL) {
+        s_mutex = xSemaphoreCreateMutex();
+        if (s_mutex == NULL) return ESP_ERR_NO_MEM;
+    }
 
     uart_config_t cfg = {
         .baud_rate = (int)baud,
@@ -73,13 +78,24 @@ esp_err_t n4d8b08_init(uint8_t slave_id, uint32_t baud)
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
         .source_clk = UART_SCLK_DEFAULT,
     };
-    ESP_ERROR_CHECK(uart_driver_install(N4D8B08_UART_NUM, 256, 256, 0, NULL, 0));
-    ESP_ERROR_CHECK(uart_param_config(N4D8B08_UART_NUM, &cfg));
-    ESP_ERROR_CHECK(uart_set_pin(N4D8B08_UART_NUM, N4D8B08_TX_GPIO, N4D8B08_RX_GPIO,
-                                 UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
+    esp_err_t err = uart_driver_install(N4D8B08_UART_NUM, 256, 256, 0, NULL, 0);
+    if (err != ESP_OK) return err;
+
+    err = uart_param_config(N4D8B08_UART_NUM, &cfg);
+    if (err != ESP_OK) {
+        (void)uart_driver_delete(N4D8B08_UART_NUM);
+        return err;
+    }
+
+    err = uart_set_pin(N4D8B08_UART_NUM, N4D8B08_TX_GPIO, N4D8B08_RX_GPIO,
+                       UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    if (err != ESP_OK) {
+        (void)uart_driver_delete(N4D8B08_UART_NUM);
+        return err;
+    }
 
     s_ready = true;
-    esp_err_t err = n4d8b08_close_all();
+    err = n4d8b08_close_all();
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "close_all at init failed: %s (module may be unpowered)", esp_err_to_name(err));
         /* Still mark ready so HMI can retry; machine treats failures per command */
@@ -91,7 +107,8 @@ esp_err_t n4d8b08_init(uint8_t slave_id, uint32_t baud)
 
 esp_err_t n4d8b08_set_channel(uint8_t channel_1_to_8, bool open)
 {
-    if (!s_ready || channel_1_to_8 < 1 || channel_1_to_8 > 8) return ESP_ERR_INVALID_ARG;
+    if (channel_1_to_8 < 1 || channel_1_to_8 > 8) return ESP_ERR_INVALID_ARG;
+    if (!s_ready || s_mutex == NULL) return ESP_ERR_INVALID_STATE;
     xSemaphoreTake(s_mutex, portMAX_DELAY);
     esp_err_t err = fc06_retry(channel_1_to_8, open ? 0x0001 : 0x0002);
     xSemaphoreGive(s_mutex);
@@ -100,7 +117,7 @@ esp_err_t n4d8b08_set_channel(uint8_t channel_1_to_8, bool open)
 
 esp_err_t n4d8b08_close_all(void)
 {
-    if (!s_ready) return ESP_ERR_INVALID_STATE;
+    if (!s_ready || s_mutex == NULL) return ESP_ERR_INVALID_STATE;
     xSemaphoreTake(s_mutex, portMAX_DELAY);
     esp_err_t err = fc06_retry(0x0000, 0x0008);
     xSemaphoreGive(s_mutex);

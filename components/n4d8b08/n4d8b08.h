@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "driver/uart.h"
 #include "esp_err.h"
 
 #define N4D8B08_UART_NUM      UART_NUM_1
