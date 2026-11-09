@@ -10,7 +10,8 @@ Validate documentation assumptions, then firmware stages after implementation ap
 |------|-------|
 | State machine | Transition table: Start→mix→…→complete; Pause/Resume preserves remainder; Stop→safe IDLE; qty loop count |
 | Settings validation | Min/max reject; defaults load; magic/version mismatch → defaults |
-| Relay image | Polarity active-low/high; press mutex rejects both-on; force_safe clears all |
+| Relay HAL | Logical R1–R8 map to channels 1–8; press mutex rejects both-open; force_safe closes all |
+| Modbus framing | FC06 request/CRC; open `0x0001`; close `0x0002`; close-all register `0x0000` data `0x0008`; retry exhaustion |
 | Command queue | Recovery lock rejects Manual/Auto motion cmds |
 
 ## 2. Hardware bring-up
@@ -18,10 +19,10 @@ Validate documentation assumptions, then firmware stages after implementation ap
 | Test | Method | Pass criteria |
 |------|--------|---------------|
 | Display/touch unchanged | Boot demo path / new HMI | 1024×600, touch aligns |
-| I2C scan | Log devices | See `0x24`, `0x5D`, PCF address |
-| PCF8575 write | Scope/LED on IN lines | Bits match R1–R8 map |
-| Relay polarity | Toggle each channel | Matches configured active level |
-| Safe boot | Power cycle | All relays OFF before any UI Start |
+| RS485 direction bring-up | Check Waveshare silk/schematic and observe traffic | DE/RE behavior (automatic vs GPIO) is documented and requests transmit correctly |
+| N4D8B08 communication | Send Modbus RTU requests at 9600 8N1 to slave 1 | Valid response for each channel command |
+| Channel mapping | Open/close each channel | Channels 1–8 match R1–R8 and visibly/audibly switch |
+| Safe boot | Power cycle | Close-all occurs before any UI Start; all relays remain closed |
 | Coil/contactor side | With air/power locked out first | No unintended motion |
 
 ## 3. LVGL / HMI
@@ -74,7 +75,7 @@ Use shortened timings for lab dry-runs without dough.
 | E-stop hit mid-cycle | All power down including HMI |
 | Power restore | Recovery screen; no auto motion; outputs OFF |
 | Ack without inspection text | Still requires button (procedural) |
-| PCF8575 disconnect | Fault state; attempt safe; no silent continue |
+| Unplug RS485 | Retries exhaust; `FAULT_IO_COMM`; no crash or silent continue; UI does not claim verified coil state |
 | Illegal dual press command | HAL rejects |
 
 ## 8. Soak / robustness
@@ -85,7 +86,7 @@ Use shortened timings for lab dry-runs without dough.
 
 ## Test evidence
 
-Record: firmware commit, settings used, I2C addresses, polarity, press creep measurements, pass/fail, operator initials.
+Record: firmware commit, settings used, Modbus slave/baud, confirmed DE/RE behavior, channel map results, press creep measurements, pass/fail, operator initials.
 
 ## Related
 

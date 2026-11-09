@@ -28,17 +28,18 @@ History uses a separate namespace `piaya_hist` (see History section).
 | `flat_ext_ms` | u32 | 1000 | 50 | 30000 | ms | Flattener extend |
 | `flat_ret_ms` | u32 | 1000 | 50 | 30000 | ms | Flattener return wait |
 | `target_qty` | u32 | 50 | 1 | 100000 | count | Production target |
-| `relay_active_low` | u8 | 1 | 0 | 1 | flag | 1 = active-LOW module |
-| `pcf_addr` | u8 | 0 (auto) | 0 or 0x20–0x27 | — | addr | 0 = auto-detect; skip 0x24 |
+| `modbus_slave_id` | u8 | 1 | — | — | ID | N4D8B08 Modbus slave ID |
+| `modbus_baud` | u32 | 9600 | — | — | baud | N4D8B08 UART baud rate; 8N1 |
 
 Defaults are **starting estimates** for commissioning; tune on the real machine and Save.
+The Modbus keys may be stored in NVS; v1 defaults are slave 1 and 9600 baud. There is no relay polarity setting.
 
 ## Validation rules
 
 - Reject Save if any value outside min/max.
 - Reject Start Auto if `target_qty < 1` or any duration critical path is zero where motion is required (`press_adv_ms`, `cut_ext_ms`, etc. must be ≥ min).
 - `press_hold_ms` may be 0.
-- Changing `relay_active_low` or `pcf_addr` requires safe outputs rewrite immediately after apply.
+- Validate Modbus settings before initializing the relay backend.
 - Invalid NVS blob → load defaults and raise non-fatal settings warning on HMI.
 
 ## NVS key layout
@@ -68,8 +69,8 @@ typedef struct {
     uint32_t flattener_extend_duration_ms;
     uint32_t flattener_return_duration_ms;
     uint32_t target_quantity;
-    bool     relay_active_low;
-    uint8_t  pcf8575_addr;
+    uint8_t  modbus_slave_id;
+    uint32_t modbus_baud;
 } machine_settings_t;
 ```
 
@@ -80,6 +81,7 @@ Single global copy owned by settings module; machine_task takes a const snapshot
 - Edit only when machine IDLE (and not mid-fault clear if required).
 - Save → write NVS → toast success/fail.
 - Restore defaults → RAM only until Save (or Save immediately after confirm — prefer confirm then write).
+- Do not expose a relay polarity control. Keep the I/O self-test for R1–R8.
 
 ## Production history (related persistence)
 

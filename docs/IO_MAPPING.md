@@ -19,21 +19,20 @@
 - Manual commands rejected while Automatic is active (and vice versa) except Stop / acknowledged Recovery flow.
 - Spare R8 remains OFF unless explicitly assigned later.
 
-## Proposed PCF8575 mapping (tentative)
+## N4D8B08 relay channel mapping
 
-| PCF8575 | Bit | Relay | Notes |
-|---------|-----|-------|-------|
-| Port0 | 0 | R1 | Mixer |
-| Port0 | 1 | R2 | Door |
-| Port0 | 2 | R3 | Press FWD |
-| Port0 | 3 | R4 | Press REV |
-| Port0 | 4 | R5 | Cutter |
-| Port0 | 5 | R6 | Conveyor |
-| Port0 | 6 | R7 | Flattener |
-| Port0 | 7 | R8 | Spare |
-| Port1 | 0–7 | — | Reserved (future inputs) |
+| Logical | N4D8B08 channel | Register | Load |
+|---------|-----------------|----------|------|
+| R1 | 1 | `0x0001` | Mixer |
+| R2 | 2 | `0x0002` | Door |
+| R3 | 3 | `0x0003` | Press FWD |
+| R4 | 4 | `0x0004` | Press REV |
+| R5 | 5 | `0x0005` | Cutter |
+| R6 | 6 | `0x0006` | Conveyor |
+| R7 | 7 | `0x0007` | Flattener |
+| R8 | 8 | `0x0008` | Spare |
 
-**Unresolved until wiring confirmation:** bit order vs silkscreen IN1–IN8; may reverse if module wiring differs. HAL must map logical R1–R8, not raw bits, throughout the application.
+The relay HAL maps logical R1–R8 to channels 1–8. N4D8B08 commands use Modbus FC06: data `0x0001` opens a channel, `0x0002` closes it, and register `0x0000` with data `0x0008` closes all channels.
 
 ## I2C allocation
 
@@ -42,25 +41,14 @@
 | I2C master | — | SDA GPIO8, SCL GPIO9 | Shared bus |
 | GT911 | `0x5D` (`0x14` backup) | same | Touch |
 | IO_EXTENSION | `0x24` | same | Board EXIO / PWM / ADC |
-| PCF8575 | **Auto-detect `0x20`..`0x27`** (skip `0x24`) | same | Relay outputs |
 
-### Address selection
+## RS485 allocation
 
-A0–A2 jumpers select `0x20`..`0x27`. Firmware **auto-detects** at boot (skips board IO_EXTENSION `0x24`). Observed so far: `0x27`, then `0x21` after rewiring — jumpers unstable until fixed. Must not collide with `0x5D` / `0x14` (GT911).
+| Device | Protocol | Pins | Configuration |
+|--------|----------|------|---------------|
+| N4D8B08 | Modbus RTU, 8N1 | TX GPIO16, RX GPIO15 | Slave 1, 9600 baud |
 
-## Signal polarity
-
-| Setting | Behavior |
-|---------|----------|
-| Confirmed | **Active-LOW**: logical ON → drive expander bit LOW |
-| Alternate | Active-HIGH still supported via NVS `relay_active_low` if hardware changes |
-| Config | Default `relay_active_low = 1` (see Settings) |
-
-**Confirmed by operator (2026-11-06):** module is active-LOW.
-
-### Power-up note
-
-PCF8575 ports typically read/write high after reset (quasi-bidirectional pull-ups). With active-LOW relays this usually means all relays OFF at power-up — desirable. Active-HIGH modules may briefly ON until firmware writes safe state; mitigate with hardware if needed.
+Relay polarity is not configurable. Firmware uses the N4D8B08 protocol's explicit open and close commands and issues close-all during initialization before machine control starts.
 
 ## Board EXIO (do not steal for R1–R8)
 
@@ -87,18 +75,17 @@ PCF8575 ports typically read/write high after reset (quasi-bidirectional pull-up
 
 ## Electrical requirements
 
-- Galvanic isolation between MCU side and power/pneumatic side (relay module optos or equivalent).
-- Common GND reference only where the module datasheet requires it for IN pins.
+- Use the N4D8B08 relay contacts only within their electrical ratings.
 - Solenoid supply and motor power on separate suitably fused circuits.
 - E-stop cuts machine power including ESP32 (see Safety doc).
+- Confirm whether the Waveshare RS485 interface controls DE/RE automatically or needs a GPIO during bring-up.
 
 ## Unresolved pin / wiring assignments
 
 | Item | Status |
 |------|--------|
-| PCF8575 7-bit address | **Confirmed `0x27` (I2C scan)** |
-| Relay active level | **Confirmed active-LOW** |
-| Port0 bit ↔ IN1..IN8 order | Tentative; confirm |
+| RS485 DE/RE control | Open: confirm auto-direction vs GPIO from board silk/schematic during bring-up |
+| N4D8B08 supply voltage | Confirm 12 V vs 24 V as an electrical integration item |
 | Contactor/VFD input wiring for R1/R6 | Mechanical/electrical design TBD |
 | Valve coil voltage (12/24 V) | Confirm per purchased valves |
 | E-stop power interrupt topology | Confirm which rails drop |

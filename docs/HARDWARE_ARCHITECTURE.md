@@ -14,7 +14,7 @@
 | I2C bus | GPIO **8** (SDA), GPIO **9** (SCL), 400 kHz, `I2C_NUM_0` |
 | LVGL | Vendored **8.4.0** via `components/lvgl_port` |
 
-### Onboard IO_EXTENSION (not PCF8575)
+### Onboard IO_EXTENSION
 
 | Item | Value |
 |------|-------|
@@ -27,27 +27,24 @@
 | EXIO5 | USB vs CAN mux |
 | EXIO0 / EXIO6 / EXIO7 | Appears unused (~3 free lines only) |
 
-Do **not** repurpose EXIO1/2/4/5 for machine relays. Prefer external PCF8575 for R1–R8.
+Do **not** repurpose EXIO1/2/4/5 for machine relays. R1–R8 are controlled by the external N4D8B08 over RS485.
 
 ### ESP GPIO reality
 
-RGB data/control, SDMMC, RS485, TWAI, I2C, and touch INT consume essentially all convenient ESP GPIOs in this demo. **Eight relay channels must not be assigned to invent “free” ESP pins.** Expansion is via I2C (PCF8575).
+RGB data/control, SDMMC, RS485, TWAI, I2C, and touch INT consume essentially all convenient ESP GPIOs in this demo. **Eight relay channels must not be assigned to invented “free” ESP pins.** Relay control uses the board RS485 interface on TX GPIO16 and RX GPIO15.
 
-## External PCF8575
+## External Eletechsup N4D8B08
 
 | Item | Decision |
 |------|----------|
-| Purpose | Digital outputs to 8-channel relay module inputs |
-| Bus | Same I2C0 (GPIO 8/9) |
-| Address | Auto-detect `0x20`..`0x27` (A0–A2 jumpers; skip board `0x24`) |
-| Forbidden addresses | `0x24` (IO_EXTENSION), `0x5D` / `0x14` (GT911) |
-| Port0 | Tentative: bits 0–7 → R1–R8 |
-| Port1 | Reserved for future inputs |
-| Behavior | Quasi-bidirectional; write full port images; power-up tends high |
+| Purpose | Eight relay outputs for contactor and valve control |
+| Transport | Waveshare ESP32 UART RS485: TX GPIO16, RX GPIO15 |
+| Protocol | Modbus RTU, 9600 8N1 |
+| Slave | ID 1; only RS485 peripheral in v1 |
+| Commands | FC06 channel open/close and close-all |
+| Direction control | Confirm automatic DE/RE vs GPIO from board silk/schematic during bring-up |
 
-PCF8575 outputs must **not** drive relay coils directly. Drive opto-isolated relay module inputs (or equivalent driver stage) only.
-
-## Relay module (8-channel)
+## Relay channels
 
 | Channel | Logical load |
 |---------|----------------|
@@ -65,8 +62,8 @@ PCF8575 outputs must **not** drive relay coils directly. Drive opto-isolated rel
 - Relay PCB contacts are for **control signals**, not raw motor current.
 - Mixer/conveyor: use contactors or VFD digital inputs sized for the motor.
 - Solenoids: ensure relay/driver ratings match coil voltage/current and expected cycle rate.
-- Polarity: software-configurable; **default active-LOW**; bench-confirm.
-- Active-LOW + PCF8575 power-up high generally maps to OFF — still validate.
+- Firmware issues the N4D8B08 close-all command during initialization before machine control starts.
+- Confirm whether the installed N4D8B08 is supplied at 12 V or 24 V as part of electrical integration.
 
 ## Pneumatic valves
 
@@ -95,10 +92,12 @@ Never switch motor mains through undersized module contacts.
 ## Electrical interfaces (summary)
 
 ```
-ESP32-S3 I2C (8/9)
-  ├── GT911 @ 0x5D
-  ├── IO_EXTENSION @ 0x24  → board backlight / TP_RST / SD / mux
-  └── PCF8575 @ 0x27 → relay IN1..IN8 → contactors / valve drivers
+ESP32-S3
+  ├── I2C GPIO8/9
+  │   ├── GT911 @ 0x5D
+  │   └── IO_EXTENSION @ 0x24 → board backlight / TP_RST / SD / mux
+  └── RS485 TX GPIO16 / RX GPIO15
+      └── N4D8B08 slave 1 → relay channels 1..8 → contactors / valves
 ```
 
 Hardwired E-stop removes power from machine loads **and** the HMI/ESP32 supply path used in this design.

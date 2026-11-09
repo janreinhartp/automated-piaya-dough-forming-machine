@@ -23,7 +23,7 @@
 
 ```
 components/
-  pcf8575/                 # NEW: PCF8575 driver
+  n4d8b08/                 # Modbus RTU driver for N4D8B08
   i2c/ rgb_lcd_port/ touch/ lvgl_port/ io_extension/ ...
 main/
   main.c                   # Bring-up orchestration only
@@ -31,7 +31,7 @@ main/
     machine_sm.c/.h        # State machine
     machine_task.c/.h      # FreeRTOS task + command queue
     actuators.c/.h         # Logical actuator API
-    relays.c/.h            # Relay image + polarity + interlocks
+    relays.c/.h            # Logical relay HAL + interlocks
     settings.c/.h          # NVS settings
     history.c/.h           # Production history
     safety.c/.h            # Recovery lock, fault helpers
@@ -52,9 +52,9 @@ main/
 
 | Module | Responsibility |
 |--------|----------------|
-| `main.c` | NVS, touch, LCD, LVGL, PCF8575/relay safe init, start `machine_task`, `hmi_init` |
-| `pcf8575` | I2C read/write port0/port1; init; error logging |
-| `relays` | Logical R1–R8 → bit image; polarity; force-safe; press mutex at write gate |
+| `main.c` | NVS, touch, LCD, LVGL, RS485/N4D8B08 safe init, start `machine_task`, `hmi_init` |
+| `n4d8b08` | UART RS485 init; Modbus RTU FC06 open/close and close-all; retries |
+| `relays` | Logical R1–R8 → N4D8B08 channels 1–8; force-safe; press mutex at write gate |
 | `actuators` | Named APIs: mixer_on/off, door_open/close, press_fwd/rev/coast, … |
 | `machine_sm` | Pure-ish transitions given events + elapsed time |
 | `machine_task` | Owns queue, tick, calls SM + actuators |
@@ -83,10 +83,10 @@ main/
 ## Hardware abstraction
 
 ```
-UI / SM  →  actuators_*()  →  relays_set(logical, on)  →  pcf8575_write_port0(mask)
+UI / SM → actuators_*() → relays_set(logical, on) → n4d8b08_set_channel(channel, open)
 ```
 
-Application code must not include PCF8575 register details outside `components/pcf8575` and `relays`.
+Application code must not include Modbus frame or N4D8B08 register details outside `components/n4d8b08` and `relays`.
 
 ## Data structures (conceptual)
 
@@ -132,6 +132,7 @@ Centralized timing/config lives in `machine_settings_t` (see Settings spec).
 | Machine → HMI | Lock-free or mutex-protected `machine_status_t` snapshot |
 | Settings | NVS; machine reloads on save notify |
 | LVGL thread safety | Always `lvgl_port_lock` around LVGL API from non-lvgl tasks |
+| Relay transport | Modbus RTU 9600 8N1, slave 1, TX GPIO16 / RX GPIO15 |
 
 ## Boot sequence
 
@@ -139,9 +140,11 @@ Centralized timing/config lives in `machine_settings_t` (see Settings spec).
 2. `touch_gt911_init` (brings up I2C + IO_EXTENSION)  
 3. `waveshare_esp32_s3_rgb_lcd_init` + backlight on  
 4. `lvgl_port_init`  
-5. `pcf8575_init` + `relays_force_safe()`  
+5. UART RS485 / `n4d8b08_init` + close-all / `relays_force_safe()`
 6. Start `machine_task` with `recovery_unlocked = false`  
 7. `hmi_init` → show Recovery  
+
+RS485 DE/RE direction control (automatic vs GPIO) must be confirmed against the Waveshare board silk/schematic during bring-up.
 
 ## Coding rules
 

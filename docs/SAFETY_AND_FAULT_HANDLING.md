@@ -36,9 +36,8 @@ UI checklist should include: E-stop released, air pressure, guards, press positi
 
 | Step | Action |
 |------|--------|
-| Before PCF available | Do not claim machine ready |
-| PCF init | Write port image corresponding to all relays OFF (respect polarity) |
-| On polarity change | Immediately rewrite safe image |
+| Before N4D8B08 available | Do not claim machine ready |
+| RS485 / N4D8B08 init | Issue close-all before machine control starts |
 | On Stop / Fault / mode exit | `relays_force_safe()` |
 | On `machine_task` crash path | Best-effort safe write in shutdown hook if practical |
 
@@ -62,7 +61,7 @@ UI checklist should include: E-stop released, air pressure, guards, press positi
 
 | Code | Condition | Reaction |
 |------|-----------|----------|
-| `FAULT_PCF8575_COMM` | I2C NACK / write fail | Safe attempt; FAULT state; HMI banner |
+| `FAULT_IO_COMM` | Modbus timeout, bad response, or exhausted retries | Safe attempt; FAULT state; HMI banner; do not claim verified relay state |
 | `FAULT_SETTINGS_INVALID` | Corrupt/out-of-range at Start | Reject start; message |
 | `FAULT_INTERNAL` | Illegal state transition | Safe; FAULT |
 | `FAULT_WATCHDOG` | If TWDT fires on machine task | Reset path → Recovery on reboot |
@@ -101,7 +100,7 @@ Stop command:
 
 ## Future expansion hooks
 
-- PCF8575 Port1 inputs for E-stop aux, air pressure OK, guards.
+- N4D8B08 digital inputs may be considered after v1.
 - Sensor-based press end stops.
 - Dual-channel safety relays independent of ESP32 (already assumed for E-stop power).
 
