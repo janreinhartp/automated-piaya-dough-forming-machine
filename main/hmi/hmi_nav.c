@@ -17,9 +17,3 @@ void hmi_load_screen(lv_obj_t *scr)
 {
     lv_scr_load_anim(scr, LV_SCR_LOAD_ANIM_NONE, 0, 0, true);
 }
-
-void hmi_attach_nav(lv_obj_t *bar)
-{
-    /* Legacy no-op: navigation is built by hmi_make_nav_bar(). */
-    (void)bar;
-}

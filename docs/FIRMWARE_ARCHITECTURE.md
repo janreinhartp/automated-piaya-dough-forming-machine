@@ -10,13 +10,13 @@
 
 ## Preserve vs replace
 
-| Keep unchanged (unless documented) | Removed (2026-11-06) |
-|------------------------------------|------------------------|
-| `components/rgb_lcd_port` | `main/ui` (SquareLine demo) |
+| Keep unchanged (unless documented) | Removed |
+|------------------------------------|---------|
+| `components/rgb_lcd_port` | `main/ui` SquareLine demo (2026-11-06) |
 | `components/touch` (GT911) | `main/user` (wifi/rs485/can/pwm/sd/password) |
 | `components/lvgl_port` | `components/twai`, `usart`, `sd` |
 | `components/i2c` | `components/gui_paint`, `fonts`, `image` |
-| `components/io_extension` | |
+| `components/io_extension` | `components/pcf8575` (2026-11-09; replaced by `n4d8b08`) |
 | `sdkconfig.defaults` display/PSRAM baseline | |
 
 ## Proposed folder structure
@@ -38,7 +38,9 @@ main/
     machine_types.h        # Shared enums/structs
   hmi/
     hmi_init.c/.h
-    theme.c/.h
+    hmi_theme.c/.h
+    hmi_nav.c/.h
+    hmi_timers.c/.h
     screens/
       scr_recovery.c
       scr_dashboard.c

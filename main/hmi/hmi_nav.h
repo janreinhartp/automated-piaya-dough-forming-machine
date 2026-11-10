@@ -7,7 +7,6 @@
 extern "C" {
 #endif
 
-void hmi_attach_nav(lv_obj_t *bar);
 lv_obj_t *hmi_screen_base(void);
 void hmi_load_screen(lv_obj_t *scr);
 

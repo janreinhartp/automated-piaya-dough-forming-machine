@@ -5,6 +5,9 @@ sdkconfig.old
 sdkconfig.ci
 dependencies.lock
 
+# Local agent / SDD scratch (briefs, diffs, reports)
+.superpowers/
+
 # ESP Component Manager
 managed_components/
 
