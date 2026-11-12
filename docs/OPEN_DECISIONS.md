@@ -6,7 +6,7 @@ Items that are intentionally unresolved or require bench/operator confirmation b
 
 | ID | Topic | Current assumption | Needs |
 |----|-------|--------------------|-------|
-| H1 | RS485 DE/RE direction control | Not yet confirmed as automatic or GPIO-controlled | Check Waveshare board silk/schematic during bring-up. Also confirm unplug → Modbus timeout (not a local TX echo mistaken for FC06 success) |
+| H1 | RS485 DE/RE direction control | **Closed:** Waveshare onboard SP3485 has automatic TX/RX direction; no DE/RE GPIO. Still confirm unplug → Modbus timeout (not a local TX echo mistaken for FC06 success) | N/A |
 | H2 | N4D8B08 supply | 12 V vs 24 V is an electrical integration choice | Confirm installed board supply |
 | H3 | N4D8B08 channel mapping | Channel 1=R1 … channel 8=R8 | Verify each channel during bench bring-up |
 | H4 | Valve coil voltage | Likely 24 V DC (unconfirmed) | Nameplate check |
@@ -30,7 +30,7 @@ Items that are intentionally unresolved or require bench/operator confirmation b
 
 | ID | Topic | Notes |
 |----|-------|-------|
-| E1 | RS485 wiring and direction control | Confirm A/B wiring and DE/RE behavior during bring-up |
+| E1 | RS485 A/B wiring | Confirm A/B and GND during bring-up (DE/RE is automatic) |
 | E2 | Shared grounds | Avoid ground loops with motor VFDs |
 | E3 | Inrush on ESP32 supply after E-stop restore | Ensure clean reset |
 
@@ -46,7 +46,7 @@ Items that are intentionally unresolved or require bench/operator confirmation b
 
 ## Operator confirmations required
 
-1. RS485 DE/RE behavior, N4D8B08 supply, and channel-by-channel operation.
+1. N4D8B08 supply, A/B wiring, and channel-by-channel operation (DE/RE confirmed automatic).
 2. Accept Recovery-screen workflow (option B locked).  
 3. Bench sign-off on press hold behavior (M1).  
 4. Contactor/VFD wiring diagram before energizing motors.  
@@ -56,6 +56,7 @@ Items that are intentionally unresolved or require bench/operator confirmation b
 
 | Date | Decision |
 |------|----------|
+| 2026-11-12 | Fix N4D8B08 FC06 data words to Command<<8\|Delay (`0x0100`/`0x0200`/`0x0800`); close H1 — Waveshare SP3485 auto DE/RE |
 | 2026-11-09 | Replace the PCF8575 I2C relay backend with Eletechsup N4D8B08 over Modbus RTU (slave 1, 9600 8N1, TX GPIO16, RX GPIO15); remove relay polarity configuration |
 | 2026-11-06 | External PCF8575 on I2C 8/9 (not onboard IO_EXTENSION for R1–R8) |
 | 2026-11-06 | Keep 4V220-08 + ASP330F; timed pulse advance; validate hold on bench |

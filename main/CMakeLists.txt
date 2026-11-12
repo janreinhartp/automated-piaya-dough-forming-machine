@@ -11,10 +11,15 @@ set(srcs
     "hmi/hmi_theme.c"
     "hmi/hmi_nav.c"
     "hmi/hmi_timers.c"
+    "hmi/graphics/process_map.c"
+    "hmi/graphics/machine_drawing.c"
+    "hmi/graphics/assets/img_panel_auto.c"
+    "hmi/graphics/assets/img_panel_run.c"
     "hmi/screens/scr_recovery.c"
     "hmi/screens/scr_dashboard.c"
     "hmi/screens/scr_manual.c"
     "hmi/screens/scr_auto.c"
+    "hmi/screens/scr_auto_run.c"
     "hmi/screens/scr_settings.c"
     "hmi/screens/scr_history.c"
 )
@@ -24,6 +29,8 @@ set(include_dirs
     machine
     hmi
     hmi/screens
+    hmi/graphics
+    hmi/graphics/assets
 )
 
 idf_component_register(SRCS ${srcs}

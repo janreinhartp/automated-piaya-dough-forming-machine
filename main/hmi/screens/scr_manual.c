@@ -36,6 +36,11 @@ static void on_action(lv_event_t *e)
     if (act == NULL) {
         return;
     }
+    machine_status_t st;
+    machine_status_get(&st);
+    if (!st.manual_allowed || st.fault != FAULT_NONE) {
+        return;
+    }
     if (!act->needs_confirm) {
         machine_cmd_send(act->cmd);
         return;
@@ -43,26 +48,26 @@ static void on_action(lv_event_t *e)
     s_pending_cmd = act->cmd;
     static const char *btns[] = {"Cancel", "Confirm", ""};
     char title[48];
-    snprintf(title, sizeof(title), "Confirm · %s",
+    snprintf(title, sizeof(title), "Confirm | %s",
              act->confirm_title ? act->confirm_title : "Motion");
     lv_obj_t *mbox = lv_msgbox_create(NULL, title,
-                                      "Commanded motion — verify clear path.", btns, false);
+                                      "Commanded motion - verify clear path.", btns, true);
     lv_obj_center(mbox);
     lv_obj_add_event_cb(lv_msgbox_get_btns(mbox), mbox_event, LV_EVENT_VALUE_CHANGED, NULL);
 }
 
 static manual_action_t ACT_MIX_ON = {CMD_MANUAL_MIXER_ON, false, NULL};
 static manual_action_t ACT_MIX_OFF = {CMD_MANUAL_MIXER_OFF, false, NULL};
-static manual_action_t ACT_DOOR_O = {CMD_MANUAL_DOOR_OPEN, true, "Door OPEN · R2"};
+static manual_action_t ACT_DOOR_O = {CMD_MANUAL_DOOR_OPEN, true, "Door OPEN | R2"};
 static manual_action_t ACT_DOOR_C = {CMD_MANUAL_DOOR_CLOSE, false, NULL};
-static manual_action_t ACT_PF = {CMD_MANUAL_PRESS_FWD, true, "Press FWD · R3"};
-static manual_action_t ACT_PR = {CMD_MANUAL_PRESS_REV, true, "Press REV · R4"};
+static manual_action_t ACT_PF = {CMD_MANUAL_PRESS_FWD, true, "Press FWD | R3"};
+static manual_action_t ACT_PR = {CMD_MANUAL_PRESS_REV, true, "Press REV | R4"};
 static manual_action_t ACT_PC = {CMD_MANUAL_PRESS_COAST, false, NULL};
-static manual_action_t ACT_CE = {CMD_MANUAL_CUTTER_EXTEND, true, "Cutter EXT · R5"};
+static manual_action_t ACT_CE = {CMD_MANUAL_CUTTER_EXTEND, true, "Cutter EXT | R5"};
 static manual_action_t ACT_CR = {CMD_MANUAL_CUTTER_RETRACT, false, NULL};
 static manual_action_t ACT_CON_ON = {CMD_MANUAL_CONVEYOR_ON, false, NULL};
 static manual_action_t ACT_CON_OFF = {CMD_MANUAL_CONVEYOR_OFF, false, NULL};
-static manual_action_t ACT_FE = {CMD_MANUAL_FLATTENER_EXTEND, true, "Flatten EXT · R7"};
+static manual_action_t ACT_FE = {CMD_MANUAL_FLATTENER_EXTEND, true, "Flatten EXT | R7"};
 static manual_action_t ACT_FR = {CMD_MANUAL_FLATTENER_RETRACT, false, NULL};
 static manual_action_t ACT_SAFE = {CMD_MANUAL_ALL_SAFE, false, NULL};
 static manual_action_t ACT_IO = {CMD_MANUAL_IO_SELFTEST, false, NULL};
@@ -106,23 +111,18 @@ static void refresh_cmd(lv_timer_t *t)
     const char *conv = (m & (1u << 5)) ? "CMD: ON" : "CMD: OFF";
     const char *flat = (m & (1u << 6)) ? "CMD: EXT" : "CMD: RET";
 
-    if (s_cmd_labels[0]) {
-        lv_label_set_text(s_cmd_labels[0], mix);
-    }
-    if (s_cmd_labels[1]) {
-        lv_label_set_text(s_cmd_labels[1], door);
-    }
-    if (s_cmd_labels[2]) {
-        lv_label_set_text(s_cmd_labels[2], press);
-    }
-    if (s_cmd_labels[3]) {
-        lv_label_set_text(s_cmd_labels[3], cut);
-    }
-    if (s_cmd_labels[4]) {
-        lv_label_set_text(s_cmd_labels[4], conv);
-    }
-    if (s_cmd_labels[5]) {
-        lv_label_set_text(s_cmd_labels[5], flat);
+    const char *vals[6] = {mix, door, press, cut, conv, flat};
+    const bool on[6] = {
+        (m & (1u << 0)) != 0, (m & (1u << 1)) != 0,
+        (m & ((1u << 2) | (1u << 3))) != 0, (m & (1u << 4)) != 0,
+        (m & (1u << 5)) != 0, (m & (1u << 6)) != 0
+    };
+    for (int i = 0; i < 6; i++) {
+        if (s_cmd_labels[i]) {
+            lv_label_set_text(s_cmd_labels[i], vals[i]);
+            lv_obj_set_style_text_color(s_cmd_labels[i],
+                                       on[i] ? HMI_COLOR_ACCENT : HMI_COLOR_MUTED, 0);
+        }
     }
 }
 
@@ -145,10 +145,17 @@ void hmi_show_manual(void)
     lv_obj_clear_flag(notice, LV_OBJ_FLAG_SCROLLABLE);
     hmi_make_label(notice, "COMMANDED OUTPUTS", HMI_COLOR_MUTED, &lv_font_montserrat_12);
     lv_obj_set_pos(lv_obj_get_child(notice, 0), 12, 9);
-    lv_obj_t *rec = hmi_make_label(notice, "RECOVERY / UNLOCKED", HMI_COLOR_OK, &lv_font_montserrat_12);
+    machine_status_t st0;
+    machine_status_get(&st0);
+    lv_obj_t *rec = hmi_make_label(notice,
+                                   st0.manual_allowed ? "RECOVERY / UNLOCKED" : "MANUAL LOCKED",
+                                   st0.manual_allowed ? HMI_COLOR_OK : HMI_COLOR_WARN,
+                                   &lv_font_montserrat_12);
     lv_obj_set_pos(rec, 278, 9);
-    hmi_make_label(notice, "Verify the path before commanding motion.", HMI_COLOR_SOFT,
-                   &lv_font_montserrat_12);
+    hmi_make_label(notice,
+                   st0.manual_allowed ? "Verify the path before commanding motion."
+                                      : "Manual blocked (auto running or fault).",
+                   HMI_COLOR_SOFT, &lv_font_montserrat_12);
     lv_obj_set_pos(lv_obj_get_child(notice, 2), 520, 9);
 
     lv_obj_t *row;

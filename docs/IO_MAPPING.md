@@ -32,7 +32,7 @@
 | R7 | 7 | `0x0007` | Flattener |
 | R8 | 8 | `0x0008` | Spare |
 
-The relay HAL maps logical R1–R8 to channels 1–8. N4D8B08 commands use Modbus FC06: data `0x0001` opens a channel, `0x0002` closes it, and register `0x0000` with data `0x0008` closes all channels.
+The relay HAL maps logical R1–R8 to channels 1–8. N4D8B08 FC06 data words are **Command (high byte) | Delay (low byte)**: `0x0100` opens a channel, `0x0200` closes it, and register `0x0000` with `0x0800` closes all. (Sending `0x0001`/`0x0002`/`0x0008` is invalid and the module returns no reply.)
 
 ## I2C allocation
 
@@ -78,13 +78,13 @@ Relay polarity is not configurable. Firmware uses the N4D8B08 protocol's explici
 - Use the N4D8B08 relay contacts only within their electrical ratings.
 - Solenoid supply and motor power on separate suitably fused circuits.
 - E-stop cuts machine power including ESP32 (see Safety doc).
-- Confirm whether the Waveshare RS485 interface controls DE/RE automatically or needs a GPIO during bring-up.
+- Waveshare onboard SP3485 uses automatic DE/RE; no direction GPIO.
 
 ## Unresolved pin / wiring assignments
 
 | Item | Status |
 |------|--------|
-| RS485 DE/RE control | Open: confirm auto-direction vs GPIO from board silk/schematic during bring-up |
+| RS485 DE/RE control | Closed: Waveshare SP3485 automatic direction (no GPIO) |
 | N4D8B08 supply voltage | Confirm 12 V vs 24 V as an electrical integration item |
 | Contactor/VFD input wiring for R1/R6 | Mechanical/electrical design TBD |
 | Valve coil voltage (12/24 V) | Confirm per purchased valves |

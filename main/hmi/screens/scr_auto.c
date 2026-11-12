@@ -2,6 +2,7 @@
 #include "hmi_nav.h"
 #include "hmi_theme.h"
 #include "hmi_timers.h"
+#include "machine_drawing.h"
 #include "machine_task.h"
 
 #include "lvgl.h"
@@ -13,6 +14,14 @@ static lv_obj_t *s_remain_qty;
 static lv_obj_t *s_auto_active;
 static lv_obj_t *s_step;
 static lv_obj_t *s_step_ms;
+static lv_obj_t *s_drawing;
+
+static void go_run_view(lv_event_t *e)
+{
+    (void)e;
+    machine_cmd_send(CMD_START_AUTO);
+    hmi_show_auto_run();
+}
 
 static void refresh(lv_timer_t *t)
 {
@@ -32,8 +41,9 @@ static void refresh(lv_timer_t *t)
     lv_obj_set_style_text_color(s_auto_active,
                                 st.auto_active ? HMI_COLOR_OK : HMI_COLOR_MUTED, 0);
     lv_label_set_text(s_step, st.step_name ? st.step_name : "IDLE");
-    snprintf(buf, sizeof(buf), "%u ms", (unsigned)st.remaining_ms);
+    snprintf(buf, sizeof(buf), "%.1f s", st.remaining_ms / 1000.0f);
     lv_label_set_text(s_step_ms, buf);
+    hmi_machine_drawing_update(s_drawing, &st);
 }
 
 static void cmd_evt(lv_event_t *e)
@@ -81,31 +91,7 @@ void hmi_show_auto(void)
     hmi_make_label(c, "status", HMI_COLOR_MUTED, &lv_font_montserrat_12);
     lv_obj_set_pos(lv_obj_get_child(c, 2), 90, 39);
 
-    /* Machine drawing panel — station rail approximation (SVG assets need LVGL conversion). */
-    lv_obj_t *draw = hmi_make_card(scr, 16, 152, 640, 252);
-    lv_obj_set_style_bg_color(draw, HMI_COLOR_PANEL_DEEP, 0);
-    lv_obj_t *dh = hmi_make_label(draw, "MACHINE / PROCESS VIEW", HMI_COLOR_MUTED,
-                                  &lv_font_montserrat_12);
-    lv_obj_set_pos(dh, 15, 13);
-    hmi_make_label(draw, "FLOW ->", HMI_COLOR_MUTED, &lv_font_montserrat_12);
-    lv_obj_align(lv_obj_get_child(draw, 1), LV_ALIGN_TOP_RIGHT, -15, 13);
-
-    static const char *stations[] = {
-        "1 MIXER", "2 DOOR", "3 PRESS", "4 CUTTER", "5 CONVEYOR", "6 FLATTEN"
-    };
-    for (int i = 0; i < 6; i++) {
-        lv_obj_t *pill = lv_obj_create(draw);
-        lv_obj_set_size(pill, 180, 44);
-        lv_obj_set_pos(pill, 20 + (i % 3) * 200, 50 + (i / 3) * 80);
-        lv_obj_set_style_bg_color(pill, HMI_COLOR_PANEL, 0);
-        lv_obj_set_style_bg_opa(pill, LV_OPA_COVER, 0);
-        lv_obj_set_style_border_color(pill, HMI_COLOR_BORDER, 0);
-        lv_obj_set_style_border_width(pill, 1, 0);
-        lv_obj_set_style_radius(pill, 6, 0);
-        lv_obj_clear_flag(pill, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_t *pl = hmi_make_label(pill, stations[i], HMI_COLOR_ACCENT, &lv_font_montserrat_14);
-        lv_obj_center(pl);
-    }
+    s_drawing = hmi_machine_drawing_create(scr, 16, 152, 640, 252, false);
 
     lv_obj_t *live = hmi_make_card(scr, 672, 152, 336, 252);
     hmi_make_label(live, "STEP NAME", HMI_COLOR_MUTED, &lv_font_montserrat_12);
@@ -114,20 +100,21 @@ void hmi_show_auto(void)
     lv_obj_set_pos(s_step, 15, 39);
     hmi_make_label(live, "STEP REMAINING", HMI_COLOR_MUTED, &lv_font_montserrat_12);
     lv_obj_set_pos(lv_obj_get_child(live, 2), 15, 83);
-    s_step_ms = hmi_make_label(live, "0 ms", HMI_COLOR_ACCENT, &lv_font_montserrat_20);
+    s_step_ms = hmi_make_label(live, "0.0 s", HMI_COLOR_ACCENT, &lv_font_montserrat_20);
     lv_obj_set_pos(s_step_ms, 15, 103);
 
-    lv_obj_t *run = hmi_make_btn_sized(live, "Run Auto", HMI_COLOR_MOTION, 304, 56, HMI_COLOR_ACCENT);
+    lv_obj_t *run = hmi_make_btn_sized(live, "Run Auto - drawing view", HMI_COLOR_MOTION,
+                                       304, 56, HMI_COLOR_ACCENT);
     lv_obj_set_pos(run, 15, 144);
-    lv_obj_add_event_cb(run, cmd_evt, LV_EVENT_CLICKED, (void *)(uintptr_t)CMD_START_AUTO);
-    hmi_make_label(live, "Start or resume the automatic forming sequence.", HMI_COLOR_MUTED,
+    lv_obj_add_event_cb(run, go_run_view, LV_EVENT_CLICKED, NULL);
+    hmi_make_label(live, "Open the step-by-step run view.", HMI_COLOR_MUTED,
                    &lv_font_montserrat_12);
     lv_obj_set_pos(lv_obj_get_child(live, lv_obj_get_child_cnt(live) - 1), 15, 216);
 
     lv_obj_t *b;
     b = hmi_make_btn_sized(scr, "START", HMI_COLOR_RUN, 236, 64, HMI_COLOR_TEXT);
     lv_obj_set_pos(b, 16, 424);
-    lv_obj_add_event_cb(b, cmd_evt, LV_EVENT_CLICKED, (void *)(uintptr_t)CMD_START_AUTO);
+    lv_obj_add_event_cb(b, go_run_view, LV_EVENT_CLICKED, NULL);
     b = hmi_make_btn_sized(scr, "PAUSE", HMI_COLOR_PAUSE_BG, 236, 64, HMI_COLOR_PAUSE_FG);
     lv_obj_set_pos(b, 268, 424);
     lv_obj_add_event_cb(b, cmd_evt, LV_EVENT_CLICKED, (void *)(uintptr_t)CMD_PAUSE);
@@ -138,7 +125,7 @@ void hmi_show_auto(void)
     lv_obj_set_pos(b, 772, 424);
     lv_obj_add_event_cb(b, cmd_evt, LV_EVENT_CLICKED, (void *)(uintptr_t)CMD_STOP);
 
-    hmi_make_label(scr, "Commanded outputs only — not position feedback. Cylinders are timed.",
+    hmi_make_label(scr, "Commanded outputs only - not position feedback. Cylinders are timed.",
                    HMI_COLOR_MUTED, &lv_font_montserrat_12);
     lv_obj_set_pos(lv_obj_get_child(scr, lv_obj_get_child_cnt(scr) - 1), 16, 502);
 

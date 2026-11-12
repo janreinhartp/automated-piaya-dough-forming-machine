@@ -31,11 +31,16 @@ static esp_err_t fc06(uint16_t reg, uint16_t value)
     if (w != 8) return ESP_FAIL;
     esp_err_t err = uart_wait_tx_done(N4D8B08_UART_NUM, pdMS_TO_TICKS(100));
     if (err != ESP_OK) return err;
+    /* Auto DE/RE needs a short settle before RO is valid again. */
+    vTaskDelay(pdMS_TO_TICKS(2));
 
     uint8_t resp[8];
     int r = uart_read_bytes(N4D8B08_UART_NUM, resp, 8, pdMS_TO_TICKS(200));
     if (r != 8) {
-        ESP_LOGW(TAG, "FC06 timeout/short read %d (reg=0x%04X val=0x%04X)", r, reg, value);
+        ESP_LOGW(TAG,
+                 "FC06 timeout/short read %d (reg=0x%04X val=0x%04X) tx=%02X%02X%02X%02X%02X%02X%02X%02X",
+                 r, reg, value,
+                 req[0], req[1], req[2], req[3], req[4], req[5], req[6], req[7]);
         return ESP_ERR_TIMEOUT;
     }
     uint16_t rcrc = modbus_crc16(resp, 6);
@@ -110,7 +115,7 @@ esp_err_t n4d8b08_set_channel(uint8_t channel_1_to_8, bool open)
     if (channel_1_to_8 < 1 || channel_1_to_8 > 8) return ESP_ERR_INVALID_ARG;
     if (!s_ready || s_mutex == NULL) return ESP_ERR_INVALID_STATE;
     xSemaphoreTake(s_mutex, portMAX_DELAY);
-    esp_err_t err = fc06_retry(channel_1_to_8, open ? 0x0001 : 0x0002);
+    esp_err_t err = fc06_retry(channel_1_to_8, open ? N4D8B08_CMD_OPEN : N4D8B08_CMD_CLOSE);
     xSemaphoreGive(s_mutex);
     return err;
 }
@@ -119,7 +124,7 @@ esp_err_t n4d8b08_close_all(void)
 {
     if (!s_ready || s_mutex == NULL) return ESP_ERR_INVALID_STATE;
     xSemaphoreTake(s_mutex, portMAX_DELAY);
-    esp_err_t err = fc06_retry(0x0000, 0x0008);
+    esp_err_t err = fc06_retry(0x0000, N4D8B08_CMD_CLOSE_ALL);
     xSemaphoreGive(s_mutex);
     return err;
 }

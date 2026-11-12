@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Transport: Waveshare RS485 UART TX **GPIO16**, RX **GPIO15**, 9600 8N1, slave ID **1**
-- Open channel N: FC06 reg `0x000N` data `0x0001`; Close: data `0x0002`; Close all: reg `0x0000` data `0x0008`
+- Open channel N: FC06 reg `0x000N` data `0x0100`; Close: data `0x0200`; Close all: reg `0x0000` data `0x0800`
 - Keep press R3/R4 mutual exclusion in `relays`
 - Do not place Modbus I/O inside LVGL callbacks
 - Remove PCF8575 completely; remove `relay_active_low` / `pcf8575_addr`
@@ -253,7 +253,7 @@ esp_err_t n4d8b08_set_channel(uint8_t channel_1_to_8, bool open)
 {
     if (!s_ready || channel_1_to_8 < 1 || channel_1_to_8 > 8) return ESP_ERR_INVALID_ARG;
     xSemaphoreTake(s_mutex, portMAX_DELAY);
-    esp_err_t err = fc06_retry(channel_1_to_8, open ? 0x0001 : 0x0002);
+    esp_err_t err = fc06_retry(channel_1_to_8, open ? N4D8B08_CMD_OPEN : N4D8B08_CMD_CLOSE);
     xSemaphoreGive(s_mutex);
     return err;
 }
@@ -262,7 +262,7 @@ esp_err_t n4d8b08_close_all(void)
 {
     if (!s_ready) return ESP_ERR_INVALID_STATE;
     xSemaphoreTake(s_mutex, portMAX_DELAY);
-    esp_err_t err = fc06_retry(0x0000, 0x0008);
+    esp_err_t err = fc06_retry(0x0000, N4D8B08_CMD_CLOSE_ALL);
     xSemaphoreGive(s_mutex);
     return err;
 }

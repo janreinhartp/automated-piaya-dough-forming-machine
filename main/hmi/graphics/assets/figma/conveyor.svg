@@ -1,0 +1,31 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="131.211" height="17.663" viewBox="0 0 131.211 17.663" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Conveyor-belt">
+<path id="Vector" d="M123.467 7.30882H5.13359C2.4906 7.30882 0.34804 9.45139 0.34804 12.0944V12.5294C0.34804 15.1724 2.4906 17.315 5.13359 17.315H123.467C126.11 17.315 128.253 15.1724 128.253 12.5294V12.0944C128.253 9.45139 126.11 7.30882 123.467 7.30882Z" fill="#40516B" stroke-width="0.69608" stroke="#98A9C1"/>
+<path id="Vector_2" d="M122.597 8.61398H5.5686C3.8867 8.61398 2.52325 9.97743 2.52325 11.6593V12.0944C2.52325 13.7763 3.8867 15.1397 5.5686 15.1397H122.597C124.279 15.1397 125.642 13.7763 125.642 12.0944V11.6593C125.642 9.97743 124.279 8.61398 122.597 8.61398Z" fill="#243249" stroke-width="0.69608" stroke="#98A9C1"/>
+<g id="Vector_3">
+<path d="M5.13366 9.48408H122.597ZM5.13366 14.2696H122.597Z" fill="black"/>
+<path d="M5.13366 9.48408H122.597M5.13366 14.2696H122.597" stroke-width="0.69608" stroke="#8192AC"/>
+</g>
+<path id="Vector_4" d="M4.2634 15.1397C5.9453 15.1397 7.30875 13.7763 7.30875 12.0944C7.30875 10.4125 5.9453 9.04903 4.2634 9.04903C2.5815 9.04903 1.21805 10.4125 1.21805 12.0944C1.21805 13.7763 2.5815 15.1397 4.2634 15.1397Z" fill="url(#paint0_linear_0_50)" stroke-width="0.69608" stroke="#98A9C1"/>
+<path id="Vector_5" d="M123.902 15.1397C125.584 15.1397 126.948 13.7763 126.948 12.0944C126.948 10.4125 125.584 9.04903 123.902 9.04903C122.22 9.04903 120.857 10.4125 120.857 12.0944C120.857 13.7763 122.22 15.1397 123.902 15.1397Z" fill="url(#paint1_linear_0_50)" stroke-width="0.69608" stroke="#98A9C1"/>
+<path id="Vector_6" d="M129.558 0.34804H125.207C124.487 0.34804 123.902 0.932376 123.902 1.65319V5.56864C123.902 6.28945 124.487 6.87379 125.207 6.87379H129.558C130.279 6.87379 130.863 6.28945 130.863 5.56864V1.65319C130.863 0.932376 130.279 0.34804 129.558 0.34804Z" fill="#255470" stroke-width="0.69608" stroke="#98A9C1"/>
+<g id="Vector_7">
+<path d="M124.772 1.6532H129.993ZM125.207 3.3934H129.993Z" fill="black"/>
+<path d="M124.772 1.6532H129.993M125.207 3.3934H129.993" stroke-width="0.69608" stroke="#6892A8"/>
+</g>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_50" x1="1.21805" y1="9.04903" x2="7.30875" y2="9.04903" gradientUnits="userSpaceOnUse">
+<stop stop-color="#CBD5E1"/>
+<stop offset="0.32" stop-color="#8F9FB6"/>
+<stop offset="0.65" stop-color="#62748E"/>
+<stop offset="1" stop-color="#AAB8CD"/>
+</linearGradient>
+<linearGradient id="paint1_linear_0_50" x1="120.857" y1="9.04903" x2="126.948" y2="9.04903" gradientUnits="userSpaceOnUse">
+<stop stop-color="#CBD5E1"/>
+<stop offset="0.32" stop-color="#8F9FB6"/>
+<stop offset="0.65" stop-color="#62748E"/>
+<stop offset="1" stop-color="#AAB8CD"/>
+</linearGradient>
+</defs>
+</svg>

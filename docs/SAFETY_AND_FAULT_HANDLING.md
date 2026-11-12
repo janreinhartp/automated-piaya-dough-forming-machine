@@ -66,7 +66,7 @@ UI checklist should include: E-stop released, air pressure, guards, press positi
 | `FAULT_INTERNAL` | Illegal state transition | Safe; FAULT |
 | `FAULT_WATCHDOG` | If TWDT fires on machine task | Reset path → Recovery on reboot |
 
-**Bring-up check (RS485):** with the N4D8B08 unplugged (or A/B disconnected), an FC06 write must **time out** and raise `FAULT_IO_COMM`. A successful FC06 response must never be a local TX echo (no/incorrect DE/RE turnaround echoing the request back). DE/RE direction control remains open (see OPEN_DECISIONS H1).
+**Bring-up check (RS485):** with the N4D8B08 unplugged (or A/B disconnected), an FC06 write must **time out** and raise `FAULT_IO_COMM`. A successful FC06 response must never be a local TX echo (auto DE/RE turnaround echoing the request back). Waveshare DE/RE is automatic (OPEN_DECISIONS H1 closed).
 
 Clearing fault: operator ack on HMI after condition resolved; return IDLE with recovery policy as appropriate (comm faults may require reboot).
 

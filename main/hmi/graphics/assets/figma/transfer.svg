@@ -1,0 +1,24 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="53.7286" height="34.2602" viewBox="0 0 53.7286 34.2602" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Transfer-gate-and-twin-feed">
+<path id="Vector" d="M1.63149 16.5319H41.6561L36.8705 27.4081H6.85209L1.63149 16.5319Z" fill="#8B9CB4" stroke-width="0.652575" stroke-linejoin="round" stroke="#9BAEC5"/>
+<g id="Vector_2">
+<path d="M21.6438 16.9669V26.9731Z" fill="black"/>
+<path d="M21.6438 16.9669V26.9731" stroke-width="1.30515" stroke-linejoin="round" stroke="#354F75"/>
+</g>
+<path id="Vector_3" d="M7.28712 27.8432H19.9036V33.9339H7.28712V27.8432ZM24.2541 27.8432H36.8705V33.9339H24.2541V27.8432Z" fill="url(#paint0_linear_0_75)" stroke-width="0.652575" stroke-linejoin="round" stroke="#9BAEC5"/>
+<path id="Vector_4" d="M0.326287 13.9216H42.9612V16.967H0.326287V13.9216Z" fill="#D1DCEB" stroke-width="0.652575" stroke-linejoin="round" stroke="#9BAEC5"/>
+<path id="Vector_5" d="M46.0065 5.65565H53.4023V10.8762H46.0065V5.65565Z" fill="#2E5A9C" stroke-width="0.652575" stroke-linejoin="round" stroke="#9BAEC5"/>
+<g id="Vector_6">
+<path d="M49.4869 1.77002e-05V5.65567Z" fill="black"/>
+<path d="M49.4869 1.77002e-05V5.65567" stroke-width="1.7402" stroke-linejoin="round" stroke="#B3C3DA"/>
+</g>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_75" x1="7.28712" y1="27.8432" x2="36.8705" y2="27.8432" gradientUnits="userSpaceOnUse">
+<stop stop-color="#CBD5E1"/>
+<stop offset="0.32" stop-color="#8F9FB6"/>
+<stop offset="0.65" stop-color="#62748E"/>
+<stop offset="1" stop-color="#AAB8CD"/>
+</linearGradient>
+</defs>
+</svg>

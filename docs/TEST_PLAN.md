@@ -11,7 +11,7 @@ Validate documentation assumptions, then firmware stages after implementation ap
 | State machine | Transition table: Start→mix→…→complete; Pause/Resume preserves remainder; Stop→safe IDLE; qty loop count |
 | Settings validation | Min/max reject; defaults load; magic/version mismatch → defaults |
 | Relay HAL | Logical R1–R8 map to channels 1–8; press mutex rejects both-open; force_safe closes all |
-| Modbus framing | FC06 request/CRC; open `0x0001`; close `0x0002`; close-all register `0x0000` data `0x0008`; retry exhaustion |
+| Modbus framing | FC06 request/CRC; open `0x0100`; close `0x0200`; close-all register `0x0000` data `0x0800`; retry exhaustion |
 | Command queue | Recovery lock rejects Manual/Auto motion cmds |
 
 ## 2. Hardware bring-up
@@ -19,7 +19,7 @@ Validate documentation assumptions, then firmware stages after implementation ap
 | Test | Method | Pass criteria |
 |------|--------|---------------|
 | Display/touch unchanged | Boot demo path / new HMI | 1024×600, touch aligns |
-| RS485 direction bring-up | Check Waveshare silk/schematic and observe traffic | DE/RE behavior (automatic vs GPIO) is documented and requests transmit correctly |
+| RS485 direction bring-up | Observe traffic with N4D8B08 powered | Auto DE/RE (SP3485) documented; FC06 gets an 8-byte echo (not local TX echo only) |
 | N4D8B08 communication | Send Modbus RTU requests at 9600 8N1 to slave 1 | Valid response for each channel command |
 | Channel mapping | Open/close each channel | Channels 1–8 match R1–R8 and visibly/audibly switch |
 | Safe boot | Power cycle | Close-all occurs before any UI Start; all relays remain closed |

@@ -146,7 +146,7 @@ Centralized timing/config lives in `machine_settings_t` (see Settings spec).
 6. Start `machine_task` with `recovery_unlocked = false`  
 7. `hmi_init` → show Recovery  
 
-RS485 DE/RE direction control (automatic vs GPIO) must be confirmed against the Waveshare board silk/schematic during bring-up.
+RS485 DE/RE is automatic on the Waveshare SP3485 (ESP TX GPIO16 / RX GPIO15). N4D8B08 FC06 data words use Command<<8|Delay (`0x0100` open, `0x0200` close, `0x0800` close-all).
 
 ## Coding rules
 

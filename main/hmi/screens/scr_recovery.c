@@ -98,7 +98,7 @@ void hmi_show_recovery(void)
     lv_obj_set_width(gd, 316);
     lv_obj_set_pos(gd, 20, 239);
 
-    lv_obj_t *btn = hmi_make_btn_sized(scr, "Machine Inspected — Continue", HMI_COLOR_WARN,
+    lv_obj_t *btn = hmi_make_btn_sized(scr, "Machine Inspected - Continue", HMI_COLOR_WARN,
                                        976, 64, HMI_COLOR_ON_WARN);
     lv_obj_set_pos(btn, 24, 486);
     lv_obj_add_event_cb(btn, on_ack, LV_EVENT_CLICKED, NULL);

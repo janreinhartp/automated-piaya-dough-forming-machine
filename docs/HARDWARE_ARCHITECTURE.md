@@ -42,7 +42,7 @@ RGB data/control, SDMMC, RS485, TWAI, I2C, and touch INT consume essentially all
 | Protocol | Modbus RTU, 9600 8N1 |
 | Slave | ID 1; only RS485 peripheral in v1 |
 | Commands | FC06 channel open/close and close-all |
-| Direction control | Confirm automatic DE/RE vs GPIO from board silk/schematic during bring-up |
+| Direction control | Waveshare SP3485 automatic DE/RE (no GPIO) |
 
 ## Relay channels
 

@@ -69,9 +69,9 @@ UI / machine_sm
 
 | Action | FC | Reg | Data |
 |--------|----|-----|------|
-| Open channel N | 06 | 0x000N | 0x0001 |
-| Close channel N | 06 | 0x000N | 0x0002 |
-| Close all | 06 | 0x0000 | 0x0008 |
+| Open channel N | 06 | 0x000N | 0x0100 (Command=0x01, Delay=0x00) |
+| Close channel N | 06 | 0x000N | 0x0200 (Command=0x02, Delay=0x00) |
+| Close all | 06 | 0x0000 | 0x0800 (Command=0x08, Delay=0x00) |
 
 CRC16 Modbus, low byte first. Inter-frame quiet time respected before each request. Optional later: FC03 read status for HMI verification.
 
@@ -107,7 +107,7 @@ E-stop remains hardwired full power kill including ESP32.
 
 ## 10. Open items (non-blocking)
 
-- Confirm Waveshare RS485 DE/RE control (auto vs GPIO) against board silk/schematic during bring-up.  
+- Waveshare RS485 DE/RE is automatic (SP3485); no direction GPIO.  
 - N4D8B08 supply 12 V vs 24 V is electrical only.  
 
 ## Spec self-review
@@ -115,4 +115,4 @@ E-stop remains hardwired full power kill including ESP32.
 - No TBD placeholders without an open item.  
 - Consistent with Approach 1 and approved sections.  
 - Scope is single backend swap; sequence/UI unchanged.  
-- N4D8B08 open/close values explicitly `0x0001`/`0x0002` (not generic coil 0/1).
+- N4D8B08 open/close values explicitly `0x0100`/`0x0200` (Command<<8|Delay; not `0x0001`/`0x0002`).

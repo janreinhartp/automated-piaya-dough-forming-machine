@@ -34,6 +34,14 @@ extern "C" {
 #define HMI_COLOR_FIELD      lv_color_hex(0x1B293D)
 #define HMI_COLOR_FIELD_BD   lv_color_hex(0x3B4E69)
 #define HMI_COLOR_MOTION     lv_color_hex(0x173B49)
+/* Process station legend (Figma Automatic run-view) */
+#define HMI_COLOR_ST_DONE    lv_color_hex(0x22C55E)
+#define HMI_COLOR_ST_EXEC    lv_color_hex(0x38BDF8)
+#define HMI_COLOR_ST_PEND    lv_color_hex(0x64748B)
+#define HMI_COLOR_ST_PAUSE   lv_color_hex(0xF97316)
+#define HMI_COLOR_ST_FAULT   lv_color_hex(0xEF4444)
+#define HMI_COLOR_ST_STOP    lv_color_hex(0xC2410C)
+#define HMI_COLOR_RESET_BG   lv_color_hex(0x334155)
 
 typedef enum {
     HMI_NAV_DASHBOARD = 0,

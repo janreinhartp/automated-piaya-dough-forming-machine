@@ -18,6 +18,7 @@ static lv_obj_t *s_tgt;
 static lv_obj_t *s_pct;
 static lv_obj_t *s_bar;
 static lv_obj_t *s_ready;
+static lv_obj_t *s_clear;
 
 static void refresh_cb(lv_timer_t *t)
 {
@@ -26,7 +27,7 @@ static void refresh_cb(lv_timer_t *t)
     machine_status_get(&st);
 
     char buf[96];
-    snprintf(buf, sizeof(buf), "MACHINE STEP / %s", st.step_name ? st.step_name : "—");
+    snprintf(buf, sizeof(buf), "MACHINE STEP / %s", st.step_name ? st.step_name : "-");
     lv_label_set_text(s_strip_step, buf);
 
     lv_label_set_text(s_strip_rec, st.recovery_unlocked ? "RECOVERY / UNLOCKED" : "RECOVERY / LOCKED");
@@ -36,21 +37,34 @@ static void refresh_cb(lv_timer_t *t)
     lv_label_set_text(s_strip_auto, st.auto_active ? "AUTO RUNNING / YES" : "AUTO RUNNING / NO");
 
     lv_label_set_text(s_step_name, st.step_name ? st.step_name : "IDLE");
-    if (st.fault != FAULT_NONE) {
-        lv_label_set_text(s_step_note, "Fault latched — clear before restart.");
+    if (st.fault != FAULT_NONE || st.state == MACHINE_FAULT) {
+        lv_label_set_text(s_step_note, "Fault latched - clear before restart.");
         lv_label_set_text(s_ready, "FAULT");
         lv_obj_set_style_text_color(s_ready, HMI_COLOR_FAULT, 0);
+        lv_obj_clear_flag(s_clear, LV_OBJ_FLAG_HIDDEN);
+    } else if (st.state == MACHINE_PAUSED) {
+        lv_label_set_text(s_step_note, "Sequence paused - resume or stop.");
+        lv_label_set_text(s_ready, "PAUSED");
+        lv_obj_set_style_text_color(s_ready, HMI_COLOR_PAUSE_FG, 0);
+        lv_obj_add_flag(s_clear, LV_OBJ_FLAG_HIDDEN);
+    } else if (st.state == MACHINE_COMPLETED) {
+        lv_label_set_text(s_step_note, "Target quantity reached.");
+        lv_label_set_text(s_ready, "COMPLETED");
+        lv_obj_set_style_text_color(s_ready, HMI_COLOR_OK, 0);
+        lv_obj_add_flag(s_clear, LV_OBJ_FLAG_HIDDEN);
     } else if (st.auto_active) {
         lv_label_set_text(s_step_note, "Automatic sequence in progress.");
         lv_label_set_text(s_ready, "RUNNING");
         lv_obj_set_style_text_color(s_ready, HMI_COLOR_ACCENT, 0);
+        lv_obj_add_flag(s_clear, LV_OBJ_FLAG_HIDDEN);
     } else {
         lv_label_set_text(s_step_note, "Ready for a new production batch.");
         lv_label_set_text(s_ready, "READY");
         lv_obj_set_style_text_color(s_ready, HMI_COLOR_OK, 0);
+        lv_obj_add_flag(s_clear, LV_OBJ_FLAG_HIDDEN);
     }
 
-    snprintf(buf, sizeof(buf), "%u", (unsigned)st.remaining_ms);
+    snprintf(buf, sizeof(buf), "%.1f", st.remaining_ms / 1000.0f);
     lv_label_set_text(s_remain, buf);
 
     snprintf(buf, sizeof(buf), "%u", (unsigned)st.current_qty);
@@ -72,14 +86,18 @@ static void refresh_cb(lv_timer_t *t)
 
 static void cmd_evt(lv_event_t *e)
 {
-    machine_cmd_send((machine_cmd_id_t)(uintptr_t)lv_event_get_user_data(e));
+    machine_cmd_id_t cmd = (machine_cmd_id_t)(uintptr_t)lv_event_get_user_data(e);
+    machine_cmd_send(cmd);
+    if (cmd == CMD_START_AUTO) {
+        hmi_show_auto_run();
+    }
 }
 
 void hmi_show_dashboard(void)
 {
     hmi_timers_stop();
     lv_obj_t *scr = hmi_screen_base();
-    hmi_make_header(scr, "PIAYA DOUGH FORMING — DASHBOARD", false);
+    hmi_make_header(scr, "PIAYA DOUGH FORMING - DASHBOARD", false);
 
     lv_obj_t *strip = lv_obj_create(scr);
     lv_obj_set_size(strip, 992, 32);
@@ -117,8 +135,8 @@ void hmi_show_dashboard(void)
     lv_obj_set_pos(lv_obj_get_child(step, lv_obj_get_child_cnt(step) - 1), 20, 156);
     s_remain = hmi_make_label(step, "0", HMI_COLOR_ACCENT, &lv_font_montserrat_24);
     lv_obj_set_pos(s_remain, 20, 174);
-    hmi_make_label(step, "ms", HMI_COLOR_MUTED, &lv_font_montserrat_12);
-    lv_obj_set_pos(lv_obj_get_child(step, lv_obj_get_child_cnt(step) - 1), 90, 184);
+    hmi_make_label(step, "s", HMI_COLOR_MUTED, &lv_font_montserrat_12);
+    lv_obj_set_pos(lv_obj_get_child(step, lv_obj_get_child_cnt(step) - 1), 100, 184);
 
     lv_obj_t *prod = hmi_make_card(scr, 632, 120, 376, 224);
     hmi_make_label(prod, "PRODUCTION / PIECES", HMI_COLOR_MUTED, &lv_font_montserrat_12);
@@ -154,6 +172,12 @@ void hmi_show_dashboard(void)
                    HMI_COLOR_SOFT, &lv_font_montserrat_12);
     lv_obj_set_pos(lv_obj_get_child(ready, 1), 85, 14);
 
+    s_clear = hmi_make_btn_sized(scr, "Clear Fault", HMI_COLOR_RESUME_BG, 160, 36,
+                                 HMI_COLOR_RESUME_FG);
+    lv_obj_set_pos(s_clear, 840, 364);
+    lv_obj_add_event_cb(s_clear, cmd_evt, LV_EVENT_CLICKED, (void *)(uintptr_t)CMD_FAULT_CLEAR);
+    lv_obj_add_flag(s_clear, LV_OBJ_FLAG_HIDDEN);
+
     lv_obj_t *b;
     b = hmi_make_btn_sized(scr, "START", HMI_COLOR_RUN, 236, 64, HMI_COLOR_TEXT);
     lv_obj_set_pos(b, 16, 424);
@@ -168,7 +192,7 @@ void hmi_show_dashboard(void)
     lv_obj_set_pos(b, 772, 424);
     lv_obj_add_event_cb(b, cmd_evt, LV_EVENT_CLICKED, (void *)(uintptr_t)CMD_STOP);
 
-    hmi_make_label(scr, "Commanded outputs only — not position feedback. Cylinders are timed.",
+    hmi_make_label(scr, "Commanded outputs only - not position feedback. Cylinders are timed.",
                    HMI_COLOR_MUTED, &lv_font_montserrat_12);
     lv_obj_set_pos(lv_obj_get_child(scr, lv_obj_get_child_cnt(scr) - 1), 16, 502);
 

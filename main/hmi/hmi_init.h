@@ -10,6 +10,7 @@ void hmi_show_recovery(void);
 void hmi_show_dashboard(void);
 void hmi_show_manual(void);
 void hmi_show_auto(void);
+void hmi_show_auto_run(void);
 void hmi_show_settings(void);
 void hmi_show_history(void);
 
