@@ -4,13 +4,13 @@
 
 | Logical ID | Component | Function | Energized meaning | Safe idle |
 |------------|-----------|----------|-------------------|-----------|
-| R1 | Mixer motor | ON/OFF | Motor run command asserted | OFF |
-| R2 | Mixer door | Extend | Door open (cylinder extend) | OFF (spring return closed) |
+| R1 | String cutter | Extend | Cutter out | OFF (spring return) |
+| R2 | Flattener | Extend | Flattener down/out | OFF (spring return) |
 | R3 | Press chamber | Forward | Advance press | OFF |
 | R4 | Press chamber | Reverse | Retract / reset press | OFF |
-| R5 | String cutter | Extend | Cutter out | OFF (spring return) |
+| R5 | Mixer door | Extend | Door open (cylinder extend) | OFF (spring return closed) |
 | R6 | Conveyor motor | ON/OFF | Conveyor run command | OFF |
-| R7 | Flattener | Extend | Flattener down/out | OFF (spring return) |
+| R7 | Mixer motor | ON/OFF | Motor run command asserted | OFF |
 | R8 | Spare | Reserved | — | OFF |
 
 ### Interlocks (firmware)
@@ -23,13 +23,13 @@
 
 | Logical | N4D8B08 channel | Register | Load |
 |---------|-----------------|----------|------|
-| R1 | 1 | `0x0001` | Mixer |
-| R2 | 2 | `0x0002` | Door |
+| R1 | 1 | `0x0001` | Cutter |
+| R2 | 2 | `0x0002` | Flattener |
 | R3 | 3 | `0x0003` | Press FWD |
 | R4 | 4 | `0x0004` | Press REV |
-| R5 | 5 | `0x0005` | Cutter |
+| R5 | 5 | `0x0005` | Mixer Door |
 | R6 | 6 | `0x0006` | Conveyor |
-| R7 | 7 | `0x0007` | Flattener |
+| R7 | 7 | `0x0007` | Mixer |
 | R8 | 8 | `0x0008` | Spare |
 
 The relay HAL maps logical R1–R8 to channels 1–8. N4D8B08 FC06 data words are **Command (high byte) | Delay (low byte)**: `0x0100` opens a channel, `0x0200` closes it, and register `0x0000` with `0x0800` closes all. (Sending `0x0001`/`0x0002`/`0x0008` is invalid and the module returns no reply.)
@@ -86,7 +86,7 @@ Relay polarity is not configurable. Firmware uses the N4D8B08 protocol's explici
 |------|--------|
 | RS485 DE/RE control | Closed: Waveshare SP3485 automatic direction (no GPIO) |
 | N4D8B08 supply voltage | Confirm 12 V vs 24 V as an electrical integration item |
-| Contactor/VFD input wiring for R1/R6 | Mechanical/electrical design TBD |
+| Contactor/VFD input wiring for R7/R6 | Mechanical/electrical design TBD |
 | Valve coil voltage (12/24 V) | Confirm per purchased valves |
 | E-stop power interrupt topology | Confirm which rails drop |
 

@@ -8,12 +8,12 @@ esp_err_t actuators_all_safe(void)
 
 esp_err_t actuators_mixer(bool on)
 {
-    return relays_set(RELAY_R1_MIXER, on);
+    return relays_set(RELAY_R7_MIXER, on);
 }
 
 esp_err_t actuators_door_extend(bool extend)
 {
-    return relays_set(RELAY_R2_DOOR, extend);
+    return relays_set(RELAY_R5_DOOR, extend);
 }
 
 esp_err_t actuators_press_forward(bool on)
@@ -41,7 +41,7 @@ esp_err_t actuators_press_coast(void)
 
 esp_err_t actuators_cutter_extend(bool extend)
 {
-    return relays_set(RELAY_R5_CUTTER, extend);
+    return relays_set(RELAY_R1_CUTTER, extend);
 }
 
 esp_err_t actuators_conveyor(bool on)
@@ -51,5 +51,5 @@ esp_err_t actuators_conveyor(bool on)
 
 esp_err_t actuators_flattener_extend(bool extend)
 {
-    return relays_set(RELAY_R7_FLATTENER, extend);
+    return relays_set(RELAY_R2_FLATTENER, extend);
 }

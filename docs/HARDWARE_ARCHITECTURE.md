@@ -48,13 +48,13 @@ RGB data/control, SDMMC, RS485, TWAI, I2C, and touch INT consume essentially all
 
 | Channel | Logical load |
 |---------|----------------|
-| R1 | Mixer motor command (to contactor/VFD run input) |
-| R2 | Mixer door extend solenoid |
+| R1 | Cutter extend solenoid |
+| R2 | Flattener extend solenoid |
 | R3 | Press forward solenoid |
 | R4 | Press reverse solenoid |
-| R5 | Cutter extend solenoid |
+| R5 | Mixer door extend solenoid |
 | R6 | Conveyor motor command |
-| R7 | Flattener extend solenoid |
+| R7 | Mixer motor command (to contactor/VFD run input) |
 | R8 | Spare |
 
 ### Electrical rules
@@ -84,7 +84,7 @@ RGB data/control, SDMMC, RS485, TWAI, I2C, and touch INT consume essentially all
 
 | Motor | Control path |
 |-------|----------------|
-| Mixer | R1 → contactor/VFD |
+| Mixer | R7 → contactor/VFD |
 | Conveyor | R6 → contactor/VFD |
 
 Never switch motor mains through undersized module contacts.

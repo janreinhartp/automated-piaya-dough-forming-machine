@@ -83,15 +83,17 @@ static void refresh(lv_timer_t *t)
     }
 
     uint8_t m = st.commanded_outputs;
-    set_cmd_row(0, (m & (1u << 0)) ? "ON" : "OFF", m & (1u << 0));
-    set_cmd_row(1, (m & (1u << 1)) ? "OPEN" : "CLOSE", m & (1u << 1));
+    set_cmd_row(0, (m & (1u << RELAY_R7_MIXER)) ? "ON" : "OFF", m & (1u << RELAY_R7_MIXER));
+    set_cmd_row(1, (m & (1u << RELAY_R5_DOOR)) ? "OPEN" : "CLOSE", m & (1u << RELAY_R5_DOOR));
     {
-        const char *press = (m & (1u << 2)) ? "FWD" : ((m & (1u << 3)) ? "REV" : "COAST");
-        set_cmd_row(2, press, (m & (1u << 2)) || (m & (1u << 3)));
+        const char *press = (m & (1u << RELAY_R3_PRESS_FWD)) ? "FWD"
+                            : ((m & (1u << RELAY_R4_PRESS_REV)) ? "REV" : "COAST");
+        set_cmd_row(2, press,
+                    (m & (1u << RELAY_R3_PRESS_FWD)) || (m & (1u << RELAY_R4_PRESS_REV)));
     }
-    set_cmd_row(3, (m & (1u << 4)) ? "EXT" : "RET", m & (1u << 4));
-    set_cmd_row(4, (m & (1u << 5)) ? "ON" : "OFF", m & (1u << 5));
-    set_cmd_row(5, (m & (1u << 6)) ? "EXT" : "RET", m & (1u << 6));
+    set_cmd_row(3, (m & (1u << RELAY_R1_CUTTER)) ? "EXT" : "RET", m & (1u << RELAY_R1_CUTTER));
+    set_cmd_row(4, (m & (1u << RELAY_R6_CONVEYOR)) ? "ON" : "OFF", m & (1u << RELAY_R6_CONVEYOR));
+    set_cmd_row(5, (m & (1u << RELAY_R2_FLATTENER)) ? "EXT" : "RET", m & (1u << RELAY_R2_FLATTENER));
 
     hmi_machine_drawing_update(s_drawing, &st);
 }
@@ -174,7 +176,7 @@ void hmi_show_auto_run(void)
         "Mixer", "Door", "Press", "Cutter", "Conveyor", "Flattener"
     };
     static const char *relays[] = {
-        "R1", "R2", "R3/R4", "R5", "R6", "R7"
+        "R7", "R5", "R3/R4", "R1", "R6", "R2"
     };
     for (int i = 0; i < 6; i++) {
         lv_coord_t row_y = 65 + i * 39;

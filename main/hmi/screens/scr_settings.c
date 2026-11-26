@@ -11,6 +11,32 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+/* Left settings column / right persistent keypad (1024x600). */
+#define SETTINGS_LIST_X       16
+#define SETTINGS_LIST_Y       116
+#define SETTINGS_LIST_W       640
+#define SETTINGS_LIST_H       340
+#define SETTINGS_FIELD_W      608
+#define SETTINGS_KEYPAD_X     672
+#define SETTINGS_KEYPAD_Y     116
+#define SETTINGS_KEYPAD_W     336
+#define SETTINGS_KEYPAD_H     400
+
+/* Digits + decimal + backspace only (no OK/mode/+/-/arrow keys). */
+static const char *s_num_map[] = {
+    "1", "2", "3", "\n",
+    "4", "5", "6", "\n",
+    "7", "8", "9", "\n",
+    ".", "0", LV_SYMBOL_BACKSPACE, ""
+};
+
+static const lv_btnmatrix_ctrl_t s_num_ctrl[] = {
+    1, 1, 1,
+    1, 1, 1,
+    1, 1, 1,
+    1, 1, 1
+};
+
 static machine_settings_t s_edit;
 static lv_obj_t *s_msg;
 static lv_obj_t *s_kb;
@@ -45,28 +71,17 @@ static void ta_focus_cb(lv_event_t *e)
         return;
     }
     lv_keyboard_set_textarea(s_kb, ta);
-    lv_obj_clear_flag(s_kb, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_move_foreground(s_kb);
 }
 
-static void kb_ready_cb(lv_event_t *e)
-{
-    lv_event_code_t code = lv_event_get_code(e);
-    if (code == LV_EVENT_READY || code == LV_EVENT_CANCEL) {
-        lv_keyboard_set_textarea(s_kb, NULL);
-        lv_obj_add_flag(s_kb, LV_OBJ_FLAG_HIDDEN);
-    }
-}
-
-static void add_field(lv_obj_t *parent, lv_coord_t x, lv_coord_t y, const char *name,
+static void add_field(lv_obj_t *parent, lv_coord_t y, const char *name,
                       uint32_t *field, bool as_seconds)
 {
     lv_obj_t *lab = hmi_make_label(parent, name, HMI_COLOR_SOFT, &lv_font_montserrat_12);
-    lv_obj_set_pos(lab, x, y);
+    lv_obj_set_pos(lab, 16, y);
 
     lv_obj_t *ta = lv_textarea_create(parent);
-    lv_obj_set_size(ta, 452, 40);
-    lv_obj_set_pos(ta, x, y + 22);
+    lv_obj_set_size(ta, SETTINGS_FIELD_W, 40);
+    lv_obj_set_pos(ta, 16, y + 22);
     lv_textarea_set_one_line(ta, true);
     lv_textarea_set_accepted_chars(ta, as_seconds ? "0123456789." : "0123456789");
     lv_textarea_set_max_length(ta, 8);
@@ -85,13 +100,6 @@ static void add_field(lv_obj_t *parent, lv_coord_t x, lv_coord_t y, const char *
         s_binds[s_bind_count].as_seconds = as_seconds;
         s_bind_count++;
     }
-}
-
-static void add_pair(lv_obj_t *parent, lv_coord_t y, const char *lname, uint32_t *lfield,
-                     bool l_secs, const char *rname, uint32_t *rfield, bool r_secs)
-{
-    add_field(parent, 16, y, lname, lfield, l_secs);
-    add_field(parent, 486, y, rname, rfield, r_secs);
 }
 
 static void pull_fields(void)
@@ -162,13 +170,13 @@ void hmi_show_settings(void)
     lv_obj_set_style_border_width(note, 0, 0);
     lv_obj_set_style_pad_all(note, 0, 0);
     lv_obj_clear_flag(note, LV_OBJ_FLAG_SCROLLABLE);
-    hmi_make_label(note, "NVS SETTINGS | Durations in seconds", HMI_COLOR_MUTED,
-                   &lv_font_montserrat_12);
+    hmi_make_label(note, "NVS SETTINGS | Durations in seconds | Tap a field, type on the right keypad",
+                   HMI_COLOR_MUTED, &lv_font_montserrat_12);
     lv_obj_set_pos(lv_obj_get_child(note, 0), 12, 9);
 
     s_list = lv_obj_create(scr);
-    lv_obj_set_size(s_list, 992, 312);
-    lv_obj_set_pos(s_list, 16, 116);
+    lv_obj_set_size(s_list, SETTINGS_LIST_W, SETTINGS_LIST_H);
+    lv_obj_set_pos(s_list, SETTINGS_LIST_X, SETTINGS_LIST_Y);
     lv_obj_set_style_bg_color(s_list, HMI_COLOR_PANEL_DEEP, 0);
     lv_obj_set_style_bg_opa(s_list, LV_OPA_COVER, 0);
     lv_obj_set_style_border_color(s_list, HMI_COLOR_BORDER, 0);
@@ -177,43 +185,48 @@ void hmi_show_settings(void)
     lv_obj_set_style_pad_all(s_list, 0, 0);
     lv_obj_set_scroll_dir(s_list, LV_DIR_VER);
 
-    add_pair(s_list, 12, "Mix (s)", &s_edit.mixing_duration_ms, true,
-             "Door open (s)", &s_edit.door_open_duration_ms, true);
-    add_pair(s_list, 88, "Door close (s)", &s_edit.door_close_duration_ms, true,
-             "Transfer (s)", &s_edit.dough_transfer_duration_ms, true);
-    add_pair(s_list, 164, "Press advance (s)", &s_edit.press_advancement_duration_ms, true,
-             "Press hold (s)", &s_edit.press_hold_duration_ms, true);
-    add_pair(s_list, 240, "Cutter extend (s)", &s_edit.cutter_extend_duration_ms, true,
-             "Cutter return (s)", &s_edit.cutter_return_duration_ms, true);
-    add_pair(s_list, 316, "Conveyor (s)", &s_edit.conveyor_duration_ms, true,
-             "Flattener extend (s)", &s_edit.flattener_extend_duration_ms, true);
-    add_pair(s_list, 392, "Flattener return (s)", &s_edit.flattener_return_duration_ms, true,
-             "Target qty", &s_edit.target_quantity, false);
+    /* Single column so every field stays readable beside the keypad. */
+    add_field(s_list, 12, "Mix (s)", &s_edit.mixing_duration_ms, true);
+    add_field(s_list, 84, "Door open (s)", &s_edit.door_open_duration_ms, true);
+    add_field(s_list, 156, "Door close (s)", &s_edit.door_close_duration_ms, true);
+    add_field(s_list, 228, "Transfer (s)", &s_edit.dough_transfer_duration_ms, true);
+    add_field(s_list, 300, "Press advance (s)", &s_edit.press_advancement_duration_ms, true);
+    add_field(s_list, 372, "Press hold (s)", &s_edit.press_hold_duration_ms, true);
+    add_field(s_list, 444, "Cutter extend (s)", &s_edit.cutter_extend_duration_ms, true);
+    add_field(s_list, 516, "Cutter return (s)", &s_edit.cutter_return_duration_ms, true);
+    add_field(s_list, 588, "Conveyor (s)", &s_edit.conveyor_duration_ms, true);
+    add_field(s_list, 660, "Flattener extend (s)", &s_edit.flattener_extend_duration_ms, true);
+    add_field(s_list, 732, "Flattener return (s)", &s_edit.flattener_return_duration_ms, true);
+    add_field(s_list, 804, "Target qty", &s_edit.target_quantity, false);
 
-    hmi_make_label(scr, "Tap a field to edit with the numeric keypad.", HMI_COLOR_MUTED,
-                   &lv_font_montserrat_12);
-    lv_obj_set_pos(lv_obj_get_child(scr, lv_obj_get_child_cnt(scr) - 1), 16, 438);
-
-    lv_obj_t *save = hmi_make_btn_sized(scr, "Save", HMI_COLOR_RUN, 236, 52, HMI_COLOR_TEXT);
-    lv_obj_set_pos(save, 16, 462);
+    lv_obj_t *save = hmi_make_btn_sized(scr, "Save", HMI_COLOR_RUN, 200, 48, HMI_COLOR_TEXT);
+    lv_obj_set_pos(save, 16, 468);
     lv_obj_add_event_cb(save, on_save, LV_EVENT_CLICKED, NULL);
 
-    lv_obj_t *defs = hmi_make_btn_sized(scr, "Restore defaults", lv_color_hex(0x26384F), 236, 52,
+    lv_obj_t *defs = hmi_make_btn_sized(scr, "Restore defaults", lv_color_hex(0x26384F), 220, 48,
                                         HMI_COLOR_TEXT);
-    lv_obj_set_pos(defs, 268, 462);
+    lv_obj_set_pos(defs, 232, 468);
     lv_obj_add_event_cb(defs, on_defaults, LV_EVENT_CLICKED, NULL);
 
     s_msg = hmi_make_label(scr, "", HMI_COLOR_MUTED, &lv_font_montserrat_14);
-    lv_obj_set_pos(s_msg, 528, 478);
+    lv_obj_set_pos(s_msg, 468, 482);
+
+    lv_obj_t *kb_panel = hmi_make_card(scr, SETTINGS_KEYPAD_X, SETTINGS_KEYPAD_Y,
+                                       SETTINGS_KEYPAD_W, SETTINGS_KEYPAD_H);
+
+    s_kb = lv_keyboard_create(kb_panel);
+    lv_keyboard_set_map(s_kb, LV_KEYBOARD_MODE_USER_1, s_num_map, s_num_ctrl);
+    lv_keyboard_set_mode(s_kb, LV_KEYBOARD_MODE_USER_1);
+    lv_obj_set_size(s_kb, SETTINGS_KEYPAD_W - 8, SETTINGS_KEYPAD_H - 8);
+    lv_obj_set_pos(s_kb, 4, 4);
+    lv_obj_set_style_bg_color(s_kb, HMI_COLOR_PANEL_DEEP, 0);
+    lv_obj_set_style_bg_color(s_kb, HMI_COLOR_BTN_MUTED, LV_PART_ITEMS);
+    lv_obj_set_style_text_color(s_kb, HMI_COLOR_TEXT, LV_PART_ITEMS);
+    lv_obj_set_style_pad_all(s_kb, 4, 0);
+    lv_obj_set_style_pad_gap(s_kb, 4, 0);
+    /* Persistent idle keypad: no textarea until a field is focused. */
+    lv_keyboard_set_textarea(s_kb, NULL);
 
     hmi_make_nav_bar(scr, HMI_NAV_SETTINGS);
-
-    s_kb = lv_keyboard_create(scr);
-    lv_keyboard_set_mode(s_kb, LV_KEYBOARD_MODE_NUMBER);
-    lv_obj_set_size(s_kb, 1024, 220);
-    lv_obj_align(s_kb, LV_ALIGN_BOTTOM_MID, 0, 0);
-    lv_obj_add_event_cb(s_kb, kb_ready_cb, LV_EVENT_ALL, NULL);
-    lv_obj_add_flag(s_kb, LV_OBJ_FLAG_HIDDEN);
-
     hmi_load_screen(scr);
 }

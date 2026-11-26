@@ -58,16 +58,16 @@ static void on_action(lv_event_t *e)
 
 static manual_action_t ACT_MIX_ON = {CMD_MANUAL_MIXER_ON, false, NULL};
 static manual_action_t ACT_MIX_OFF = {CMD_MANUAL_MIXER_OFF, false, NULL};
-static manual_action_t ACT_DOOR_O = {CMD_MANUAL_DOOR_OPEN, true, "Door OPEN | R2"};
+static manual_action_t ACT_DOOR_O = {CMD_MANUAL_DOOR_OPEN, true, "Door OPEN | R5"};
 static manual_action_t ACT_DOOR_C = {CMD_MANUAL_DOOR_CLOSE, false, NULL};
 static manual_action_t ACT_PF = {CMD_MANUAL_PRESS_FWD, true, "Press FWD | R3"};
 static manual_action_t ACT_PR = {CMD_MANUAL_PRESS_REV, true, "Press REV | R4"};
 static manual_action_t ACT_PC = {CMD_MANUAL_PRESS_COAST, false, NULL};
-static manual_action_t ACT_CE = {CMD_MANUAL_CUTTER_EXTEND, true, "Cutter EXT | R5"};
+static manual_action_t ACT_CE = {CMD_MANUAL_CUTTER_EXTEND, true, "Cutter EXT | R1"};
 static manual_action_t ACT_CR = {CMD_MANUAL_CUTTER_RETRACT, false, NULL};
 static manual_action_t ACT_CON_ON = {CMD_MANUAL_CONVEYOR_ON, false, NULL};
 static manual_action_t ACT_CON_OFF = {CMD_MANUAL_CONVEYOR_OFF, false, NULL};
-static manual_action_t ACT_FE = {CMD_MANUAL_FLATTENER_EXTEND, true, "Flatten EXT | R7"};
+static manual_action_t ACT_FE = {CMD_MANUAL_FLATTENER_EXTEND, true, "Flatten EXT | R2"};
 static manual_action_t ACT_FR = {CMD_MANUAL_FLATTENER_RETRACT, false, NULL};
 static manual_action_t ACT_SAFE = {CMD_MANUAL_ALL_SAFE, false, NULL};
 static manual_action_t ACT_IO = {CMD_MANUAL_IO_SELFTEST, false, NULL};
@@ -104,18 +104,20 @@ static void refresh_cmd(lv_timer_t *t)
     machine_status_get(&st);
     uint8_t m = st.commanded_outputs;
 
-    const char *mix = (m & (1u << 0)) ? "CMD: ON" : "CMD: OFF";
-    const char *door = (m & (1u << 1)) ? "CMD: OPEN" : "CMD: CLOSE";
-    const char *press = (m & (1u << 2)) ? "CMD: FWD" : ((m & (1u << 3)) ? "CMD: REV" : "CMD: COAST");
-    const char *cut = (m & (1u << 4)) ? "CMD: EXT" : "CMD: RET";
-    const char *conv = (m & (1u << 5)) ? "CMD: ON" : "CMD: OFF";
-    const char *flat = (m & (1u << 6)) ? "CMD: EXT" : "CMD: RET";
+    const char *mix = (m & (1u << RELAY_R7_MIXER)) ? "CMD: ON" : "CMD: OFF";
+    const char *door = (m & (1u << RELAY_R5_DOOR)) ? "CMD: OPEN" : "CMD: CLOSE";
+    const char *press = (m & (1u << RELAY_R3_PRESS_FWD)) ? "CMD: FWD"
+                       : ((m & (1u << RELAY_R4_PRESS_REV)) ? "CMD: REV" : "CMD: COAST");
+    const char *cut = (m & (1u << RELAY_R1_CUTTER)) ? "CMD: EXT" : "CMD: RET";
+    const char *conv = (m & (1u << RELAY_R6_CONVEYOR)) ? "CMD: ON" : "CMD: OFF";
+    const char *flat = (m & (1u << RELAY_R2_FLATTENER)) ? "CMD: EXT" : "CMD: RET";
 
     const char *vals[6] = {mix, door, press, cut, conv, flat};
     const bool on[6] = {
-        (m & (1u << 0)) != 0, (m & (1u << 1)) != 0,
-        (m & ((1u << 2) | (1u << 3))) != 0, (m & (1u << 4)) != 0,
-        (m & (1u << 5)) != 0, (m & (1u << 6)) != 0
+        (m & (1u << RELAY_R7_MIXER)) != 0, (m & (1u << RELAY_R5_DOOR)) != 0,
+        (m & ((1u << RELAY_R3_PRESS_FWD) | (1u << RELAY_R4_PRESS_REV))) != 0,
+        (m & (1u << RELAY_R1_CUTTER)) != 0,
+        (m & (1u << RELAY_R6_CONVEYOR)) != 0, (m & (1u << RELAY_R2_FLATTENER)) != 0
     };
     for (int i = 0; i < 6; i++) {
         if (s_cmd_labels[i]) {
@@ -159,13 +161,13 @@ void hmi_show_manual(void)
     lv_obj_set_pos(lv_obj_get_child(notice, 2), 520, 9);
 
     lv_obj_t *row;
-    row = make_row(scr, 120, "Mixer", "R1");
+    row = make_row(scr, 120, "Mixer", "R7");
     make_cmd_btn(row, "ON", 451, &ACT_MIX_ON, false);
     make_cmd_btn(row, "OFF", 575, &ACT_MIX_OFF, false);
     s_cmd_labels[0] = hmi_make_label(row, "CMD: OFF", HMI_COLOR_MUTED, &lv_font_montserrat_12);
     lv_obj_set_pos(s_cmd_labels[0], 841, 14);
 
-    row = make_row(scr, 168, "Door", "R2");
+    row = make_row(scr, 168, "Door", "R5");
     make_cmd_btn(row, "OPEN", 451, &ACT_DOOR_O, true);
     make_cmd_btn(row, "CLOSE", 575, &ACT_DOOR_C, false);
     s_cmd_labels[1] = hmi_make_label(row, "CMD: CLOSE", HMI_COLOR_MUTED, &lv_font_montserrat_12);
@@ -178,7 +180,7 @@ void hmi_show_manual(void)
     s_cmd_labels[2] = hmi_make_label(row, "CMD: COAST", HMI_COLOR_MUTED, &lv_font_montserrat_12);
     lv_obj_set_pos(s_cmd_labels[2], 841, 14);
 
-    row = make_row(scr, 264, "Cutter", "R5");
+    row = make_row(scr, 264, "Cutter", "R1");
     make_cmd_btn(row, "EXT", 451, &ACT_CE, true);
     make_cmd_btn(row, "RET", 575, &ACT_CR, false);
     s_cmd_labels[3] = hmi_make_label(row, "CMD: RET", HMI_COLOR_MUTED, &lv_font_montserrat_12);
@@ -190,7 +192,7 @@ void hmi_show_manual(void)
     s_cmd_labels[4] = hmi_make_label(row, "CMD: OFF", HMI_COLOR_MUTED, &lv_font_montserrat_12);
     lv_obj_set_pos(s_cmd_labels[4], 841, 14);
 
-    row = make_row(scr, 360, "Flatten", "R7");
+    row = make_row(scr, 360, "Flatten", "R2");
     make_cmd_btn(row, "EXT", 451, &ACT_FE, true);
     make_cmd_btn(row, "RET", 575, &ACT_FR, false);
     s_cmd_labels[5] = hmi_make_label(row, "CMD: RET", HMI_COLOR_MUTED, &lv_font_montserrat_12);

@@ -9,13 +9,13 @@ extern "C" {
 #endif
 
 typedef enum {
-    RELAY_R1_MIXER = 0,
-    RELAY_R2_DOOR,
+    RELAY_R1_CUTTER = 0,
+    RELAY_R2_FLATTENER,
     RELAY_R3_PRESS_FWD,
     RELAY_R4_PRESS_REV,
-    RELAY_R5_CUTTER,
+    RELAY_R5_DOOR,
     RELAY_R6_CONVEYOR,
-    RELAY_R7_FLATTENER,
+    RELAY_R7_MIXER,
     RELAY_R8_SPARE,
     RELAY_COUNT
 } relay_id_t;
